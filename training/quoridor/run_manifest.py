@@ -24,6 +24,7 @@ GENERATION_REPORT_SCHEMA_VERSION = 1
 SOURCE_HASH_ALGORITHM = "sha256-path-content-v1"
 DEFAULT_ARTIFACT_LIMIT_BYTES = 8 * 1024**3
 MAXIMUM_ARTIFACT_LIMIT_BYTES = 12 * 1024**3
+EXTENDED_ARTIFACT_LIMIT_BYTES = 16 * 1024**3
 DEFAULT_MINIMUM_FREE_DISK_BYTES = 20 * 1024**3
 
 _IGNORED_SOURCE_PARTS = frozenset(
@@ -76,9 +77,9 @@ class ResourceBudget:
         ):
             if type(value) is not int or value <= 0:
                 raise ValueError(f"{label} must be a positive integer")
-        if self.artifact_limit_bytes > MAXIMUM_ARTIFACT_LIMIT_BYTES:
+        if self.artifact_limit_bytes > EXTENDED_ARTIFACT_LIMIT_BYTES:
             raise ValueError(
-                "artifact_limit_bytes must not exceed the Phase 4 12 GiB cap"
+                "artifact_limit_bytes must not exceed the Phase 4 16 GiB cap"
             )
         if self.minimum_free_disk_bytes < DEFAULT_MINIMUM_FREE_DISK_BYTES:
             raise ValueError(
@@ -721,6 +722,7 @@ __all__ = [
     "SOURCE_HASH_ALGORITHM",
     "DEFAULT_ARTIFACT_LIMIT_BYTES",
     "MAXIMUM_ARTIFACT_LIMIT_BYTES",
+    "EXTENDED_ARTIFACT_LIMIT_BYTES",
     "DEFAULT_MINIMUM_FREE_DISK_BYTES",
     "RunManifestError",
     "ManifestCorruptionError",

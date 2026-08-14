@@ -179,6 +179,32 @@ class ChallengeReplayMixTests(unittest.TestCase):
             health_holdout=holdout,
             learning_stage="classic-hard-guided",
         )
+        self.assertEqual(
+            guided.challenge_replay.value_target_mode,
+            "all-samples",
+        )
+        policy_only = ChallengeReplaySettings(
+            root=challenge.root,
+            contract_path=challenge.contract_path,
+            contract_sha256=challenge.contract_sha256,
+            dataset_fingerprint=challenge.dataset_fingerprint,
+            dataset_manifest_sha256=challenge.dataset_manifest_sha256,
+            train_manifest_sha256=challenge.train_manifest_sha256,
+            fraction=0.4,
+            value_target_mode="self-play-only",
+        )
+        self.assertEqual(policy_only.value_target_mode, "self-play-only")
+        with self.assertRaisesRegex(ValueError, "valueTargetMode"):
+            ChallengeReplaySettings(
+                root=challenge.root,
+                contract_path=challenge.contract_path,
+                contract_sha256=challenge.contract_sha256,
+                dataset_fingerprint=challenge.dataset_fingerprint,
+                dataset_manifest_sha256=challenge.dataset_manifest_sha256,
+                train_manifest_sha256=challenge.train_manifest_sha256,
+                fraction=0.4,
+                value_target_mode="teacher-only",
+            )
         self.assertEqual(guided.challenge_replay.fraction, 0.4)
         pure = TrainingSettings(
             health_holdout=holdout,

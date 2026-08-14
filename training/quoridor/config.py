@@ -13,6 +13,7 @@ import torch
 
 DEFAULT_ARTIFACT_LIMIT_BYTES = 8 * 1024**3
 MAXIMUM_ARTIFACT_LIMIT_BYTES = 12 * 1024**3
+EXTENDED_ARTIFACT_LIMIT_BYTES = 16 * 1024**3
 
 
 def _positive_int(value: Any, name: str) -> int:
@@ -127,6 +128,7 @@ class ChallengeReplaySettings:
     train_manifest_sha256: str
     fraction: float
     stratified_sampling: ChallengeSamplingSettings | None = None
+    value_target_mode: str = "all-samples"
 
     def __post_init__(self) -> None:
         if self.root == Path(".") or self.contract_path == Path("."):
@@ -140,6 +142,11 @@ class ChallengeReplaySettings:
             _optional_sha256(value, f"training.challengeReplay.{label}")
         if not 0.0 < self.fraction < 1.0:
             raise ValueError("training.challengeReplay.fraction must be in (0, 1)")
+        if self.value_target_mode not in {"all-samples", "self-play-only"}:
+            raise ValueError(
+                "training.challengeReplay.valueTargetMode must be "
+                "all-samples or self-play-only"
+            )
 
 
 @dataclass(frozen=True)
@@ -474,6 +481,11 @@ class ExperimentConfig:
             "stratified_sampling"
         ) is None:
             challenge_replay.pop("stratified_sampling", None)
+        if (
+            isinstance(challenge_replay, dict)
+            and challenge_replay.get("value_target_mode") == "all-samples"
+        ):
+            challenge_replay.pop("value_target_mode", None)
         for key in (
             "recovery_manifest_path",
             "recovery_manifest_sha256",
@@ -523,8 +535,8 @@ class ExperimentConfig:
             data.get("artifactLimitBytes", DEFAULT_ARTIFACT_LIMIT_BYTES),
             "artifactLimitBytes",
         )
-        if artifact_limit > MAXIMUM_ARTIFACT_LIMIT_BYTES:
-            raise ValueError("artifactLimitBytes must not exceed 12 GiB")
+        if artifact_limit > EXTENDED_ARTIFACT_LIMIT_BYTES:
+            raise ValueError("artifactLimitBytes must not exceed 16 GiB")
         device = str(data.get("device", "auto"))
         if device not in {"auto", "cpu", "cuda"}:
             raise ValueError("device must be auto, cpu, or cuda")
@@ -760,6 +772,11 @@ class ExperimentConfig:
                         fraction=_positive_float(
                             challenge_replay.get("fraction"),
                             "training.challengeReplay.fraction",
+                        ),
+                        value_target_mode=str(
+                            challenge_replay.get(
+                                "valueTargetMode", "all-samples"
+                            )
                         ),
                         stratified_sampling=(
                             None

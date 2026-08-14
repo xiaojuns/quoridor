@@ -74,8 +74,14 @@ class AlphaZeroTrainer:
         )
         self.step = 0
 
-    def train_step(self, batch: dict[str, torch.Tensor]) -> TrainMetrics:
+    def train_step(
+        self,
+        batch: dict[str, torch.Tensor],
+        *,
+        value_weights: torch.Tensor | None = None,
+    ) -> TrainMetrics:
         self._validate_batch(batch)
+        self._validate_value_weights(value_weights, batch["states"].shape[0])
         self.model.train()
         target_policies = batch["policies"]
         autocast_context = (
@@ -96,7 +102,19 @@ class AlphaZeroTrainer:
             policy_loss = -(
                 target_policies * F.log_softmax(policy_logits, dim=1)
             ).sum(dim=1).mean()
-            value_loss = F.mse_loss(predicted_values, target_values)
+            value_losses = F.mse_loss(
+                predicted_values,
+                target_values,
+                reduction="none",
+            ).reshape(-1)
+            if value_weights is None:
+                value_loss = value_losses.mean()
+            else:
+                weights = value_weights.to(
+                    device=value_losses.device,
+                    dtype=value_losses.dtype,
+                ).reshape(-1)
+                value_loss = (value_losses * weights).sum() / weights.sum()
             loss = policy_loss + value_loss
             self._require_finite(policy_loss, "policy loss")
             self._require_finite(value_loss, "value loss")
@@ -201,6 +219,24 @@ class AlphaZeroTrainer:
             raise ValueError("each training policy must sum to one")
         if bool(((values < -1) | (values > 1)).any().item()):
             raise ValueError("training values must be in [-1, 1]")
+
+    @classmethod
+    def _validate_value_weights(
+        cls,
+        value_weights: torch.Tensor | None,
+        batch_size: int,
+    ) -> None:
+        if value_weights is None:
+            return
+        if not isinstance(value_weights, torch.Tensor):
+            raise TypeError("value_weights must be a tensor or None")
+        if value_weights.ndim not in (1, 2) or value_weights.numel() != batch_size:
+            raise ValueError("value_weights must contain one weight per state")
+        cls._require_finite(value_weights, "value weights")
+        if bool(((value_weights < 0) | (value_weights > 1)).any().item()):
+            raise ValueError("value_weights must be in [0, 1]")
+        if not bool((value_weights > 0).any().item()):
+            raise ValueError("value_weights must retain at least one value target")
 
 
 __all__ = ["AlphaZeroTrainer", "NonFiniteTrainingError", "TrainMetrics"]

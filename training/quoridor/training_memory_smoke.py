@@ -46,6 +46,7 @@ from .phase4_execution import load_phase4_execution_contract
 from .run_manifest import (
     DEFAULT_ARTIFACT_LIMIT_BYTES,
     DEFAULT_MINIMUM_FREE_DISK_BYTES,
+    EXTENDED_ARTIFACT_LIMIT_BYTES,
     MAXIMUM_ARTIFACT_LIMIT_BYTES,
     ImmutableArtifactExistsError,
     ResourceBudget,
@@ -237,8 +238,11 @@ def assert_report_write_reserve(
     if artifact_limit_bytes not in {
         DEFAULT_ARTIFACT_LIMIT_BYTES,
         MAXIMUM_ARTIFACT_LIMIT_BYTES,
+        EXTENDED_ARTIFACT_LIMIT_BYTES,
     }:
-        raise ValueError("artifact_limit_bytes must be the frozen 8 or 12 GiB cap")
+        raise ValueError(
+            "artifact_limit_bytes must be a frozen 8, 12, or 16 GiB cap"
+        )
     if artifact_bytes + REPORT_RESERVE_BYTES > artifact_limit_bytes:
         raise TrainingMemorySmokePreflightError(
             "the smoke report reserve would exceed the frozen artifact cap"
@@ -280,8 +284,11 @@ def collect_preflight(
     if artifact_limit_bytes not in {
         DEFAULT_ARTIFACT_LIMIT_BYTES,
         MAXIMUM_ARTIFACT_LIMIT_BYTES,
+        EXTENDED_ARTIFACT_LIMIT_BYTES,
     }:
-        raise ValueError("artifact_limit_bytes must be the frozen 8 or 12 GiB cap")
+        raise ValueError(
+            "artifact_limit_bytes must be a frozen 8, 12, or 16 GiB cap"
+        )
     if global_gpu_hours >= GPU_HOUR_BUDGET:
         raise TrainingMemorySmokePreflightError(
             f"the Phase 4 {GPU_HOUR_BUDGET:g} GPU-hour budget is exhausted"
@@ -824,6 +831,7 @@ def verify_staged_preparation(
         PHASE4F18_PILOT_STAGE,
         PHASE4F35_PILOT_STAGE,
         PHASE4F36_PILOT_STAGE,
+        PHASE4F38_PILOT_STAGE,
         PHASE4F_STAGE_A,
         PHASE4F_STAGE_A_CONTINUATION,
         PHASE4F_STAGE_B_EXTENDED,
@@ -850,6 +858,12 @@ def verify_staged_preparation(
 
         prepared = _verified_preparation(workspace)
         evidence_kind = "phase4f36-stage-a2-pilot-v2-preparation"
+        evidence_path = str(prepared["pilot"]["executionPath"])
+    elif stage == PHASE4F38_PILOT_STAGE:
+        from .phase4f37_policy_only import _verified_preparation
+
+        prepared = _verified_preparation(workspace)
+        evidence_kind = "phase4f37-policy-only-pilot-preparation"
         evidence_path = str(prepared["pilot"]["executionPath"])
     elif stage == PHASE4F_STAGE_A:
         from .phase4f19_stage_a import _verified_preparation
@@ -944,6 +958,7 @@ def _run_locked(
         if prepared_limit not in {
             DEFAULT_ARTIFACT_LIMIT_BYTES,
             MAXIMUM_ARTIFACT_LIMIT_BYTES,
+            EXTENDED_ARTIFACT_LIMIT_BYTES,
         }:
             raise TrainingMemorySmokePreflightError(
                 "staged preparation has an invalid artifact cap"

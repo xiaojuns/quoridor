@@ -23,6 +23,7 @@ from quoridor.run_manifest import (
     DEFAULT_ARTIFACT_LIMIT_BYTES,
     DEFAULT_MINIMUM_FREE_DISK_BYTES,
     MAXIMUM_ARTIFACT_LIMIT_BYTES,
+    EXTENDED_ARTIFACT_LIMIT_BYTES,
     ImmutableArtifactExistsError,
     canonical_json_bytes,
     sha256_bytes,
@@ -219,27 +220,28 @@ class TrainingMemoryContractTests(unittest.TestCase):
                     ),
                 )
 
-    def test_write_reserve_accepts_explicit_frozen_twelve_gib_cap(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            with (root / "existing.bin").open("wb") as artifact:
-                artifact.truncate(DEFAULT_ARTIFACT_LIMIT_BYTES + 1)
-            resources = assert_report_write_reserve(
-                root,
-                artifact_limit_bytes=MAXIMUM_ARTIFACT_LIMIT_BYTES,
-                disk_usage=lambda _path: SimpleNamespace(
-                    free=DEFAULT_MINIMUM_FREE_DISK_BYTES
-                    + REPORT_RESERVE_BYTES
-                ),
-            )
-            self.assertEqual(
-                resources["artifactLimitBytes"],
-                MAXIMUM_ARTIFACT_LIMIT_BYTES,
-            )
+    def test_write_reserve_accepts_explicit_frozen_extended_caps(self) -> None:
+        for limit in (
+            MAXIMUM_ARTIFACT_LIMIT_BYTES,
+            EXTENDED_ARTIFACT_LIMIT_BYTES,
+        ):
+            with self.subTest(limit=limit), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                with (root / "existing.bin").open("wb") as artifact:
+                    artifact.truncate(DEFAULT_ARTIFACT_LIMIT_BYTES + 1)
+                resources = assert_report_write_reserve(
+                    root,
+                    artifact_limit_bytes=limit,
+                    disk_usage=lambda _path: SimpleNamespace(
+                        free=DEFAULT_MINIMUM_FREE_DISK_BYTES
+                        + REPORT_RESERVE_BYTES
+                    ),
+                )
+                self.assertEqual(resources["artifactLimitBytes"], limit)
 
     def test_write_reserve_rejects_unknown_artifact_cap(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            with self.assertRaisesRegex(ValueError, "8 or 12 GiB"):
+            with self.assertRaisesRegex(ValueError, "8, 12, or 16 GiB"):
                 assert_report_write_reserve(
                     directory,
                     artifact_limit_bytes=10 * 1024**3,

@@ -535,3 +535,39 @@ ledger 快照，只接受追加记录，并把原 2 GPU-hours 包络扣除已完
 
 该命令可重复执行；存在 v2 run manifest 时自动追加 `--resume`。完成单代 pilot 后只进入结果审查，
 不自动授权后续 Stage A2 训练或 promotion。
+
+## 18. Phase 4F37 F36 审查与 Policy-only Guidance 准备
+
+F36 v2 单代 pilot 的工程门全部通过：128 局 self-play 产生 `5,473` 个局面，96 个优化 batch
+全部使用 `50%` challenge replay；每个 challenge half-batch 固定包含 154 个深度 8/12 开局样本，
+side-to-move 和 move/wall 均严格各半。candidate model SHA-256 为
+`94cc1c3655c62ce1e4f2e2bb99567b07ed569f5a2a6ba58d4df4f701f6cc2014`。
+
+但固定 holdout 总损失从 F21 的 `1.8983117084` 上升到 `1.9054120703`（`+0.3740%`）。开局
+损失下降 `1.4669%`，而终局损失上升 `8.1314%`，其中主要回退来自 value loss。根据 F34 冻结的
+“fixed holdout 不得回退”约束，F36 candidate 被拒绝，不授权 classic-hard screen、正式训练或
+promotion。
+
+F37 不把 classic-hard 行为写入终局 reward。下一 pilot 仍从 F21 Stage A best 清空 optimizer 和
+self-play replay 初始化，并保留 F36 已验证的开局、行动方和动作类型分层采样；区别是教师样本只参与
+policy loss，value loss 仅使用本轮 self-play 的真实终局标签。这样可以保留行为模仿信号，同时隔离
+F36 已观察到的教师 value 分布干扰。历史配置缺省仍使用全部 value 标签，因此旧阶段语义哈希不变。
+
+F37 preparation report 位于
+`training/runs/phase4/phase4f/f37-policy-only-preparation-v1/preparation-report.json`，自哈希为
+`d4497494dbd7ea32a3320efedf330d71e5fb428bff637a4e7353c20a78690da9`。F38 config 文件哈希为
+`e81d57222ae69260007e315be6a76c69c9fe3a7992275ee05e3803418d7749d5`，语义哈希为
+`a19560e4074e23884cdc8000b4328350967ff22afd8df705a7a6bca11c3fc6af`；execution contract
+文件哈希与语义哈希均为
+`81bcf9ea1ac2ca43d512bfd6a84ee833d5df71678f0106e3e219bbea94a8122b`。
+
+用户批准的产物上限扩展为 `16 GiB`。代码保留旧阶段的 8/12 GiB 档位，并新增显式 16 GiB 档位，
+不会重新解释历史冻结工件。F38 仍为单代、128 局、512 simulations、96 optimizer steps，阶段预算
+为 2 GPU-hours。冻结时 global ledger 为 `76.73485952769691 GPU-hours`，Phase 4 产物约
+`10.87 GiB / 16 GiB`，空闲磁盘约 `60.6 GiB`。必须单独确认后才能运行：
+
+```bash
+./scripts/run-phase4f38-stage-a2-policy-only-pilot.sh \
+  --device-index 0 \
+  --gpu-hours-used 0
+```

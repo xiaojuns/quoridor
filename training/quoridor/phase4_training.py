@@ -78,6 +78,7 @@ from .phase4_budget import (
     PHASE4F18_PILOT_STAGE,
     PHASE4F35_PILOT_STAGE,
     PHASE4F36_PILOT_STAGE,
+    PHASE4F38_PILOT_STAGE,
     PHASE4F_RECOVERY_STAGE,
     PHASE4F_STAGE_A,
     PHASE4F_STAGE_A_CONTINUATION,
@@ -124,6 +125,7 @@ from .replay_tensor_cache import (
 from .run_manifest import (
     DEFAULT_ARTIFACT_LIMIT_BYTES,
     DEFAULT_MINIMUM_FREE_DISK_BYTES,
+    EXTENDED_ARTIFACT_LIMIT_BYTES,
     MAXIMUM_ARTIFACT_LIMIT_BYTES,
     GenerationReportStore,
     ManifestCorruptionError,
@@ -2072,9 +2074,10 @@ def _run_phase4_replay_input_gate_locked(
     if artifact_limit_bytes not in {
         DEFAULT_ARTIFACT_LIMIT_BYTES,
         MAXIMUM_ARTIFACT_LIMIT_BYTES,
+        EXTENDED_ARTIFACT_LIMIT_BYTES,
     }:
         raise ValueError(
-            "replay input gate artifact limit must be the frozen 8 or 12 GiB cap"
+            "replay input gate artifact limit must be a frozen 8, 12, or 16 GiB cap"
         )
     control_root = (workspace / PHASE4_CONTROL_RELATIVE).resolve()
     fixture_root = (workspace / REPLAY_INPUT_GATE_FIXTURE_RELATIVE).resolve()
@@ -2311,9 +2314,10 @@ def run_phase4_replay_input_gate(
     if artifact_limit_bytes not in {
         DEFAULT_ARTIFACT_LIMIT_BYTES,
         MAXIMUM_ARTIFACT_LIMIT_BYTES,
+        EXTENDED_ARTIFACT_LIMIT_BYTES,
     }:
         raise ValueError(
-            "replay input gate artifact limit must be the frozen 8 or 12 GiB cap"
+            "replay input gate artifact limit must be a frozen 8, 12, or 16 GiB cap"
         )
     control_root = (workspace / PHASE4_CONTROL_RELATIVE).resolve()
     _static_write_preflight(
@@ -4276,6 +4280,7 @@ class Phase4TrainingDriver:
                 torch.cuda.synchronize(self.device)
             batch_started = time.monotonic()
             challenge_counts: tuple[int, int] | None = None
+            value_weights: torch.Tensor | None = None
             requested_selfplay = self.config.training.batch_size
             challenge_cache = getattr(self, "challenge_cache", None)
             if challenge_cache is not None:
@@ -4317,6 +4322,21 @@ class Phase4TrainingDriver:
                     )
                     challenge_sampling_summaries.append(sampling_summary)
                 batch = merge_tensor_batches(batch, challenge_batch)
+                if challenge_settings.value_target_mode == "self-play-only":
+                    value_weights = torch.cat(
+                        (
+                            torch.ones(
+                                challenge_counts[0],
+                                device=self.device,
+                                dtype=torch.float32,
+                            ),
+                            torch.zeros(
+                                challenge_counts[1],
+                                device=self.device,
+                                dtype=torch.float32,
+                            ),
+                        )
+                    )
             if self.device.type == "cuda":
                 torch.cuda.synchronize(self.device)
             input_seconds = max(0.0, time.monotonic() - batch_started)
@@ -4329,7 +4349,12 @@ class Phase4TrainingDriver:
                     generation=generation,
                     **input_gate.to_payload(),
                 )
-            metrics.append(self.trainer.train_step(batch))
+            if value_weights is None:
+                metrics.append(self.trainer.train_step(batch))
+            else:
+                metrics.append(
+                    self.trainer.train_step(batch, value_weights=value_weights)
+                )
             self.budget_guard.check()
 
         if not input_gate.initial_completed:
@@ -4426,6 +4451,7 @@ class Phase4TrainingDriver:
                     if challenge_snapshot is None
                     else {
                         "fraction": self.config.training.challenge_replay.fraction,
+                        "valueTargetMode": self.config.training.challenge_replay.value_target_mode,
                         "contractSha256": self.config.training.challenge_replay.contract_sha256,
                         "cache": challenge_snapshot,
                         "sampling": (
@@ -4750,6 +4776,14 @@ def run_phase4_training(
                 execution_contract=execution_contract,
                 config=config,
             )
+        elif execution_contract.stage == PHASE4F38_PILOT_STAGE:
+            from .phase4f37_policy_only import verify_phase4f37_training_baseline
+
+            baseline_provenance = verify_phase4f37_training_baseline(
+                workspace_root=workspace,
+                execution_contract=execution_contract,
+                config=config,
+            )
         elif execution_contract.stage == PHASE4F_STAGE_A:
             from .phase4f19_stage_a import verify_phase4f19_training_baseline
 
@@ -4821,6 +4855,7 @@ def run_phase4_training(
             PHASE4F18_PILOT_STAGE,
             PHASE4F35_PILOT_STAGE,
             PHASE4F36_PILOT_STAGE,
+            PHASE4F38_PILOT_STAGE,
             PHASE4F_STAGE_A,
             PHASE4F_STAGE_A_CONTINUATION,
             PHASE4F_STAGE_B_PILOT,

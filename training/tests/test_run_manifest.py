@@ -10,6 +10,7 @@ from quoridor.run_manifest import (
     DEFAULT_ARTIFACT_LIMIT_BYTES,
     DEFAULT_MINIMUM_FREE_DISK_BYTES,
     MAXIMUM_ARTIFACT_LIMIT_BYTES,
+    EXTENDED_ARTIFACT_LIMIT_BYTES,
     GenerationReportStore,
     ImmutableArtifactExistsError,
     ManifestCorruptionError,
@@ -136,8 +137,10 @@ class RunManifestTests(unittest.TestCase):
             extended.artifact_limit_bytes,
             MAXIMUM_ARTIFACT_LIMIT_BYTES,
         )
-        with self.assertRaisesRegex(ValueError, "12 GiB"):
-            ResourceBudget(artifact_limit_bytes=MAXIMUM_ARTIFACT_LIMIT_BYTES + 1)
+        expanded = ResourceBudget(artifact_limit_bytes=EXTENDED_ARTIFACT_LIMIT_BYTES)
+        self.assertEqual(expanded.artifact_limit_bytes, EXTENDED_ARTIFACT_LIMIT_BYTES)
+        with self.assertRaisesRegex(ValueError, "16 GiB"):
+            ResourceBudget(artifact_limit_bytes=EXTENDED_ARTIFACT_LIMIT_BYTES + 1)
         with self.assertRaisesRegex(ValueError, "20 GiB"):
             ResourceBudget(
                 minimum_free_disk_bytes=DEFAULT_MINIMUM_FREE_DISK_BYTES - 1

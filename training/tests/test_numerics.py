@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import copy
 import unittest
 
 import torch
@@ -89,6 +90,37 @@ class NumericSafetyTests(unittest.TestCase):
         with self.assertRaises(NonFiniteTrainingError):
             trainer.train_step(batch)
         self.assertEqual(trainer.step, 0)
+
+    def test_value_weights_exclude_masked_targets_from_training(self) -> None:
+        torch.manual_seed(1234)
+        first_model = TinyModel()
+        second_model = copy.deepcopy(first_model)
+        first = AlphaZeroTrainer(first_model, use_amp=False)
+        second = AlphaZeroTrainer(second_model, use_amp=False)
+        first_batch = valid_batch()
+        second_batch = {key: value.clone() for key, value in first_batch.items()}
+        second_batch["values"][1] = -second_batch["values"][1]
+        second_batch["values"][3] = -second_batch["values"][3]
+        weights = torch.tensor([1.0, 0.0, 1.0, 0.0])
+
+        first_metric = first.train_step(first_batch, value_weights=weights)
+        second_metric = second.train_step(second_batch, value_weights=weights)
+
+        self.assertEqual(first_metric, second_metric)
+        for first_parameter, second_parameter in zip(
+            first_model.parameters(), second_model.parameters(), strict=True
+        ):
+            self.assertTrue(torch.equal(first_parameter, second_parameter))
+
+    def test_value_weights_must_retain_a_valid_target(self) -> None:
+        trainer = AlphaZeroTrainer(TinyModel(), use_amp=False)
+        with self.assertRaisesRegex(ValueError, "retain at least one"):
+            trainer.train_step(valid_batch(), value_weights=torch.zeros(4))
+        with self.assertRaisesRegex(ValueError, "in \\[0, 1\\]"):
+            trainer.train_step(
+                valid_batch(),
+                value_weights=torch.tensor([1.0, 1.0, 1.0, 2.0]),
+            )
 
     def test_trainer_runtime_restores_schedule_and_step(self) -> None:
         trainer = AlphaZeroTrainer(

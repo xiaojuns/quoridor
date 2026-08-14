@@ -452,7 +452,7 @@ class ReplayInputGateReportTests(unittest.TestCase):
             self.assertEqual(Path(workspace_root), self.workspace)
             self.assertEqual(
                 artifact_limit_bytes,
-                phase4_training.MAXIMUM_ARTIFACT_LIMIT_BYTES,
+                phase4_training.EXTENDED_ARTIFACT_LIMIT_BYTES,
             )
             self.assertIs(progress_callback, progress)
             events.append("run")
@@ -472,7 +472,7 @@ class ReplayInputGateReportTests(unittest.TestCase):
         ):
             result = phase4_training.run_phase4_replay_input_gate(
                 workspace_root=self.workspace,
-                artifact_limit_bytes=phase4_training.MAXIMUM_ARTIFACT_LIMIT_BYTES,
+                artifact_limit_bytes=phase4_training.EXTENDED_ARTIFACT_LIMIT_BYTES,
                 progress_callback=progress,
             )
 
@@ -488,12 +488,12 @@ class ReplayInputGateReportTests(unittest.TestCase):
         )
         preflight.assert_called_once_with(
             artifact_root=self.control_root.resolve(),
-            artifact_limit_bytes=phase4_training.MAXIMUM_ARTIFACT_LIMIT_BYTES,
+            artifact_limit_bytes=phase4_training.EXTENDED_ARTIFACT_LIMIT_BYTES,
             reserve_bytes=phase4_training._REPORT_WRITE_RESERVE_BYTES,
         )
 
     def test_public_gate_rejects_an_unfrozen_artifact_limit(self) -> None:
-        with self.assertRaisesRegex(ValueError, "8 or 12 GiB"):
+        with self.assertRaisesRegex(ValueError, "8, 12, or 16 GiB"):
             phase4_training.run_phase4_replay_input_gate(
                 workspace_root=self.workspace,
                 artifact_limit_bytes=10 * 1024**3,

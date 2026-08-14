@@ -63,8 +63,12 @@ class TrainingCoreTests(unittest.TestCase):
             {"artifactLimitBytes": 12 * 1024**3}
         )
         self.assertEqual(extended.artifact_limit_bytes, 12 * 1024**3)
-        with self.assertRaisesRegex(ValueError, "12 GiB"):
-            ExperimentConfig.from_dict({"artifactLimitBytes": 13 * 1024**3})
+        expanded = ExperimentConfig.from_dict(
+            {"artifactLimitBytes": 16 * 1024**3}
+        )
+        self.assertEqual(expanded.artifact_limit_bytes, 16 * 1024**3)
+        with self.assertRaisesRegex(ValueError, "16 GiB"):
+            ExperimentConfig.from_dict({"artifactLimitBytes": 17 * 1024**3})
 
         replay = ReplayBuffer(3, seed=7)
         replay.extend(make_sample(float(index)) for index in range(5))
