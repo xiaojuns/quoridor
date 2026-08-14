@@ -823,6 +823,7 @@ def verify_staged_preparation(
     from .phase4_budget import (
         PHASE4F18_PILOT_STAGE,
         PHASE4F35_PILOT_STAGE,
+        PHASE4F36_PILOT_STAGE,
         PHASE4F_STAGE_A,
         PHASE4F_STAGE_A_CONTINUATION,
         PHASE4F_STAGE_B_EXTENDED,
@@ -843,6 +844,12 @@ def verify_staged_preparation(
 
         prepared = _verified_preparation(workspace)
         evidence_kind = "phase4f35-stage-a2-pilot-preparation"
+        evidence_path = str(prepared["pilot"]["executionPath"])
+    elif stage == PHASE4F36_PILOT_STAGE:
+        from .phase4f36_stage_a2 import _verified_preparation
+
+        prepared = _verified_preparation(workspace)
+        evidence_kind = "phase4f36-stage-a2-pilot-v2-preparation"
         evidence_path = str(prepared["pilot"]["executionPath"])
     elif stage == PHASE4F_STAGE_A:
         from .phase4f19_stage_a import _verified_preparation

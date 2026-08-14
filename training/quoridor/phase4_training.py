@@ -77,6 +77,7 @@ from .phase4_budget import (
     PHASE4F5_STAGE,
     PHASE4F18_PILOT_STAGE,
     PHASE4F35_PILOT_STAGE,
+    PHASE4F36_PILOT_STAGE,
     PHASE4F_RECOVERY_STAGE,
     PHASE4F_STAGE_A,
     PHASE4F_STAGE_A_CONTINUATION,
@@ -4741,6 +4742,14 @@ def run_phase4_training(
                 execution_contract=execution_contract,
                 config=config,
             )
+        elif execution_contract.stage == PHASE4F36_PILOT_STAGE:
+            from .phase4f36_stage_a2 import verify_phase4f36_training_baseline
+
+            baseline_provenance = verify_phase4f36_training_baseline(
+                workspace_root=workspace,
+                execution_contract=execution_contract,
+                config=config,
+            )
         elif execution_contract.stage == PHASE4F_STAGE_A:
             from .phase4f19_stage_a import verify_phase4f19_training_baseline
 
@@ -4811,6 +4820,7 @@ def run_phase4_training(
             PHASE4F_RECOVERY_STAGE,
             PHASE4F18_PILOT_STAGE,
             PHASE4F35_PILOT_STAGE,
+            PHASE4F36_PILOT_STAGE,
             PHASE4F_STAGE_A,
             PHASE4F_STAGE_A_CONTINUATION,
             PHASE4F_STAGE_B_PILOT,

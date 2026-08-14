@@ -508,3 +508,30 @@ current-source CUDA AMP memory smoke 与 replay input gate，再运行隔离的�
 ```bash
 ./scripts/run-phase4f36-stage-a2-pilot.sh
 ```
+
+## 17. Phase 4F36 Pilot 启动故障与 v2 恢复
+
+F36 首次启动的 current-source CUDA AMP memory smoke 已通过，报告 SHA-256 为
+`5e6390de3f936eeca2fda86541fda607c11aded15c93797f8b7fc894e8c8c061`，消耗约
+`0.000769726 GPU-hours`。随后旧启动器调用 replay input gate 时未传递 F35 config 和 execution
+contract，CLI 回退到 8 GiB 默认产物上限并在写入前 fail closed；训练、self-play、checkpoint 和
+model artifact 均未开始。
+
+恢复层保留原 F35 报告与启动器不变，并使用 Git 初始提交
+`3d7fd8736b5075012e1e40cfa302024471558522` 对 F35 历史源码逐文件验签。F36 v2 保存完整 GPU
+ledger 快照，只接受追加记录，并把原 2 GPU-hours 包络扣除已完成 smoke 后冻结为
+`1.99923 GPU-hours`。新的 replay gate 显式传递 12 GiB config/contract，训练使用独立 run directory，
+不会混入未提交的 v1 状态。
+
+恢复报告位于
+`training/runs/phase4/phase4f/f36-stage-a2-recovery-v1/preparation-report.json`，自哈希为
+`49a7c9027756c80e5baec26e0e378c55c68cfe31e40ddda6d51a39e14de21bcd`。恢复后的唯一启动命令为：
+
+```bash
+./scripts/run-phase4f36-stage-a2-pilot-v2.sh \
+  --device-index 0 \
+  --gpu-hours-used 0
+```
+
+该命令可重复执行；存在 v2 run manifest 时自动追加 `--resume`。完成单代 pilot 后只进入结果审查，
+不自动授权后续 Stage A2 训练或 promotion。
