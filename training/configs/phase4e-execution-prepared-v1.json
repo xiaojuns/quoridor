@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "stage": "phase4e",
+  "status": "prepared",
+  "purpose": "phase4e-bootstrap-and-formal-promotion",
+  "formalPromotion": true,
+  "maximumGenerations": 64,
+  "stageBudget": {
+    "status": "pending",
+    "baselineGlobalHours": null,
+    "limitHours": null,
+    "baselineRunId": null,
+    "baselineReportSha256": null
+  }
+}

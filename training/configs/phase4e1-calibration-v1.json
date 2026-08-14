@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "kind": "phase4e1-calibration-contract",
+  "stage": "phase4e1",
+  "status": "confirmed",
+  "formalPromotion": false,
+  "trainingAllowed": false,
+  "resources": {
+    "globalGpuHourLimit": 72.0,
+    "calibrationGpuHourLimit": 6.0,
+    "artifactLimitBytes": 8589934592,
+    "minimumFreeDiskBytes": 21474836480,
+    "initialLedger": {
+      "path": "training/runs/phase4/gpu-budget-ledger.json",
+      "totalGpuHours": 8.459698904922698,
+      "ledgerSha256": "8b1e870fc183a4819276e97430323213e800ff322667c3d4046d9663993fd5bd"
+    }
+  },
+  "provenance": {
+    "preparedExecutionContract": {
+      "path": "training/configs/phase4e-execution-prepared-v1.json",
+      "canonicalSha256": "636ecdd40dc999614963e8f64eb7e58e533dc5302b7b2adb0e7ebaa46a8f3d87"
+    },
+    "bootstrapConfig": {
+      "path": "training/configs/phase4e-bootstrap-v1.json",
+      "semanticSha256": "af10dd79d2b87002419b11d277213f98e85991e5adb1d799eb3da7d010ce715e"
+    },
+    "standardConfig": {
+      "path": "training/configs/phase4e-standard-v1.json",
+      "semanticSha256": "93a208a1b9b14ec8052fd10edaf3dbf7a614b8ab6ff78d5e5765a6d71efbc68d"
+    },
+    "bootstrapBaseline": {
+      "manifestPath": "training/runs/phase4/baselines/bootstrap-warm-v2/manifest.json",
+      "manifestSelfSha256": "dc1c33619997732e5525840d1c867969ce82ede6d7ecb25092e962f63dd15294",
+      "modelPath": "training/runs/phase4/baselines/bootstrap-warm-v2/model.pt",
+      "modelFileSha256": "8db99ac64c5099bdf0df787350150e36c1b3c2343a826526522e027057cc8124"
+    },
+    "devOpeningSuite": {
+      "path": "training/fixtures/openings/dev.json",
+      "suiteHash": "sha256:9cde8e3302916d023957b60d4a433f31f0dfc995881389aca95daee4730b11c4"
+    }
+  },
+  "workloads": {
+    "selfPlay": {
+      "network": {
+        "channels": 192,
+        "residualBlocks": 16
+      },
+      "games": 128,
+      "actors": 64,
+      "simulations": 512,
+      "temperatureMoves": 24,
+      "seed": 20260714
+    },
+    "arena": {
+      "openingPrefixCount": 40,
+      "suiteHash": "sha256:8c15fa0f1b006dfcc32a7e4a46028e744be4291f9bc56e4172c098d67f74252d",
+      "games": 80,
+      "actors": 64,
+      "simulations": 800,
+      "seed": 20260714,
+      "candidateModel": "bootstrap-baseline",
+      "opponentModel": "bootstrap-baseline",
+      "requireActorRefill": true
+    }
+  },
+  "freeze": {
+    "reserveGpuHours": 2.0,
+    "minimumStageGpuHours": 48.0,
+    "maximumGenerations": 64
+  }
+}

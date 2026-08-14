@@ -1,0 +1,50 @@
+{
+  "pipeline": "phase4",
+  "name": "phase4e-standard-v1",
+  "seed": 20260714,
+  "device": "cuda",
+  "runDir": "training/runs/phase4/phase4e/standard-v1",
+  "artifactLimitBytes": 8589934592,
+  "initialization": {
+    "mode": "random",
+    "expectedBaseModelSha256": "51e500bbc612222bdc4902438af9dbfcf367c95cc523d5384309403e8b3ba010",
+    "resetOptimizer": true
+  },
+  "network": {
+    "inputChannels": 16,
+    "channels": 192,
+    "residualBlocks": 16,
+    "seReduction": 8,
+    "policyChannels": 32,
+    "valueChannels": 32,
+    "valueHidden": 256
+  },
+  "mcts": {
+    "simulations": 512,
+    "cBase": 19652,
+    "cInit": 1.25,
+    "dirichletEpsilon": 0.25,
+    "dirichletAlpha": null
+  },
+  "selfPlay": {
+    "games": 128,
+    "temperatureMoves": 24,
+    "actors": 64
+  },
+  "training": {
+    "replayCapacity": 300000,
+    "batchSize": 512,
+    "learningRate": 0.0003,
+    "minimumLearningRate": 0.00003,
+    "scheduleSteps": 20000,
+    "weightDecay": 0.0001,
+    "maxGradNorm": 5,
+    "useAmp": true,
+    "trainingSteps": 96,
+    "maxCheckpoints": 2
+  },
+  "arena": {
+    "games": 400,
+    "simulations": 800
+  }
+}

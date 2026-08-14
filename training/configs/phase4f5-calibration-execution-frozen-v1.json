@@ -1,0 +1,1 @@
+{"formalPromotion":false,"maximumGenerations":1,"purpose":"phase4f-recovery-cuda-rebaseline","schemaVersion":1,"stage":"phase4f5","stageBudget":{"baselineGlobalHours":43.14977626422679,"baselineReportSha256":"c2a27d4c85df8c9732d5fe9f043c58f3ea155806050a7d59320bc3b28cbd1472","baselineRunId":"phase4f4-recovery-freeze","limitHours":2.0,"status":"frozen"},"status":"frozen"}

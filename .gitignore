@@ -1,0 +1,44 @@
+# JavaScript dependencies and generated output
+node_modules/
+dist/
+coverage/
+
+# Native build products
+native/build/
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Runtime and training artifacts
+training/runs/
+*.log
+*.pid
+*.pt
+*.pth
+*.onnx
+
+# Local environment and editor state
+.env
+.env.*
+!.env.example
+.DS_Store
+.idea/
+.vscode/
+.agents/
+.codex/
+
+# Temporary files
+*.tmp
+*.swp
+*~

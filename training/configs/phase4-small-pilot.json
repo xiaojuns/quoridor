@@ -1,0 +1,50 @@
+{
+  "pipeline": "phase4",
+  "name": "phase4-small-pilot",
+  "seed": 20260714,
+  "device": "cuda",
+  "runDir": "training/runs/phase4/small-pilot",
+  "artifactLimitBytes": 8589934592,
+  "initialization": {
+    "mode": "random",
+    "expectedBaseModelSha256": "3117d692113344a98679591b7ecdfd3c7075c259b48c1471854bf7156d07db5e",
+    "resetOptimizer": true
+  },
+  "network": {
+    "inputChannels": 16,
+    "channels": 128,
+    "residualBlocks": 10,
+    "seReduction": 8,
+    "policyChannels": 32,
+    "valueChannels": 32,
+    "valueHidden": 256
+  },
+  "mcts": {
+    "simulations": 256,
+    "cBase": 19652,
+    "cInit": 1.25,
+    "dirichletEpsilon": 0.25,
+    "dirichletAlpha": null
+  },
+  "selfPlay": {
+    "games": 64,
+    "temperatureMoves": 24,
+    "actors": 32
+  },
+  "training": {
+    "replayCapacity": 100000,
+    "batchSize": 512,
+    "learningRate": 0.0003,
+    "minimumLearningRate": 0.00003,
+    "scheduleSteps": 20000,
+    "weightDecay": 0.0001,
+    "maxGradNorm": 5.0,
+    "useAmp": true,
+    "trainingSteps": 64,
+    "maxCheckpoints": 2
+  },
+  "arena": {
+    "games": 64,
+    "simulations": 256
+  }
+}

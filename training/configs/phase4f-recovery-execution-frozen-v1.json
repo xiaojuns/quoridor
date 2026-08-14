@@ -1,0 +1,1 @@
+{"formalPromotion":false,"maximumGenerations":16,"purpose":"phase4f-strength-recovery-training","schemaVersion":1,"stage":"phase4f-recovery","stageBudget":{"baselineGlobalHours":43.96769047136936,"baselineReportSha256":"55f08d39ac7374af67b6e60682868689dc074bbba3adcba8e7532093939be8b2","baselineRunId":"phase4f5-rebaseline-v4","limitHours":14.0,"status":"frozen"},"status":"frozen"}

@@ -1,0 +1,39 @@
+{
+  "name": "reference",
+  "seed": 20260712,
+  "device": "auto",
+  "runDir": "training/runs/reference",
+  "artifactLimitBytes": 8589934592,
+  "network": {
+    "channels": 192,
+    "residualBlocks": 16,
+    "seReduction": 8,
+    "policyChannels": 32,
+    "valueChannels": 32,
+    "valueHidden": 256
+  },
+  "mcts": {
+    "simulations": 256,
+    "cBase": 19652,
+    "cInit": 1.25,
+    "dirichletEpsilon": 0.25,
+    "dirichletAlpha": null
+  },
+  "selfPlay": {
+    "games": 20,
+    "temperatureMoves": 16,
+    "actors": 8
+  },
+  "training": {
+    "replayCapacity": 200000,
+    "batchSize": 256,
+    "learningRate": 0.001,
+    "weightDecay": 0.0001,
+    "trainingSteps": 200,
+    "maxCheckpoints": 5
+  },
+  "arena": {
+    "games": 40,
+    "simulations": 256
+  }
+}

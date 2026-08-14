@@ -1,0 +1,21 @@
+{
+  "name": "quoridor-local",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A local two-player and human-vs-AI Quoridor game.",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "generate:fixtures": "node scripts/generate-alpha-zero-fixtures.js",
+    "test": "node --test",
+    "test:training": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=training python3 -m unittest discover -s training/tests -v",
+    "smoke:training": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=training python3 -m quoridor.cli smoke",
+    "build:native": "./scripts/build-native-engine.sh",
+    "validate:native": "./scripts/run-phase3-validation.sh",
+    "smoke:native": "PYTHONPATH=training:native/build/python python3 scripts/smoke-native-training.py --device auto --summary-only"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="支持本地双人、人机对战和 AI 自动对弈的 Quoridor 步步为营棋盘游戏"
+    />
+    <title>步步为营 · Quoridor</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#game" aria-label="步步为营游戏主页">
+          <span class="brand-mark" aria-hidden="true">Q</span>
+          <span>
+            <strong>步步为营</strong>
+            <small>QUORIDOR</small>
+          </span>
+        </a>
+
+        <div class="topbar-actions" aria-label="对局操作">
+          <button
+            class="icon-button"
+            id="undo-button"
+            data-action="undo"
+            type="button"
+            title="悔棋"
+            aria-label="悔棋"
+          >
+            <span aria-hidden="true">↶</span>
+          </button>
+          <button
+            class="icon-button"
+            id="restart-button"
+            data-action="restart"
+            type="button"
+            title="重新开始本局"
+            aria-label="重新开始本局"
+          >
+            <span aria-hidden="true">↻</span>
+          </button>
+          <button
+            class="secondary-button new-game-button"
+            id="new-game-button"
+            data-action="new-game"
+            type="button"
+          >
+            新对局
+          </button>
+        </div>
+      </header>
+
+      <main class="game-layout" id="game">
+        <section class="board-region" aria-labelledby="game-heading">
+          <div class="turn-heading">
+            <div>
+              <p class="eyebrow" id="match-label">本地双人 · 第 1 回合</p>
+              <h1 id="game-heading">红方行动</h1>
+            </div>
+            <div class="thinking-indicator" id="thinking-indicator" hidden>
+              <span class="thinking-dot" aria-hidden="true"></span>
+              <span id="thinking-label">AI 思考中</span>
+            </div>
+          </div>
+
+          <div class="board-stage">
+            <div class="goal-label goal-label-top" id="goal-label-top">红方目标</div>
+            <div class="board-frame">
+              <div
+                class="board-field"
+                id="board"
+                data-board
+                role="grid"
+                aria-label="九乘九步步为营棋盘，红方在下，蓝方在上"
+                aria-rowcount="9"
+                aria-colcount="9"
+              >
+                <div class="board-grid" id="board-grid"></div>
+                <div class="placed-walls" id="placed-walls" aria-hidden="true"></div>
+                <div class="wall-slots" id="wall-slots"></div>
+              </div>
+            </div>
+            <div class="goal-label goal-label-bottom" id="goal-label-bottom">蓝方目标</div>
+          </div>
+
+          <p class="board-feedback" id="board-feedback" role="status" aria-live="polite">
+            红方请选择移动位置
+          </p>
+        </section>
+
+        <aside class="control-rail" aria-label="游戏信息与控制">
+          <section class="players-panel" aria-labelledby="players-heading">
+            <div class="section-heading">
+              <h2 id="players-heading">对局</h2>
+              <span class="mode-badge" id="mode-badge">双人</span>
+            </div>
+
+            <div class="player-row" id="player-1-row" data-player="0">
+              <span class="player-token player-token-red" aria-hidden="true"></span>
+              <div class="player-copy">
+                <strong id="player-1-name">红方</strong>
+                <span id="player-1-direction">向上抵达对边</span>
+              </div>
+              <div class="wall-count" aria-label="红方剩余墙数">
+                <span class="wall-count-icon" aria-hidden="true"></span>
+                <strong id="player-1-walls">10</strong>
+              </div>
+            </div>
+
+            <div class="player-row" id="player-2-row" data-player="1">
+              <span class="player-token player-token-blue" aria-hidden="true"></span>
+              <div class="player-copy">
+                <strong id="player-2-name">蓝方</strong>
+                <span id="player-2-direction">向下抵达对边</span>
+              </div>
+              <div class="wall-count" aria-label="蓝方剩余墙数">
+                <span class="wall-count-icon" aria-hidden="true"></span>
+                <strong id="player-2-walls">10</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="action-panel" aria-labelledby="action-heading">
+            <h2 id="action-heading">本回合行动</h2>
+            <div class="action-tabs" role="tablist" aria-label="行动类型">
+              <button
+                class="action-tab is-active"
+                id="move-mode-button"
+                data-mode="move"
+                type="button"
+                role="tab"
+                aria-selected="true"
+              >
+                <span class="mini-pawn" aria-hidden="true"></span>
+                移动棋子
+              </button>
+              <button
+                class="action-tab"
+                id="wall-mode-button"
+                data-mode="wall"
+                type="button"
+                role="tab"
+                aria-selected="false"
+              >
+                <span class="mini-wall" aria-hidden="true"></span>
+                放置墙壁
+              </button>
+            </div>
+
+            <div class="wall-options" id="wall-options" hidden>
+              <span class="field-label">墙壁方向</span>
+              <div class="segmented-control" aria-label="墙壁方向">
+                <button
+                  class="segment is-active"
+                  id="horizontal-button"
+                  data-orientation="h"
+                  type="button"
+                  aria-pressed="true"
+                >
+                  <span aria-hidden="true">↔</span> 横向
+                </button>
+                <button
+                  class="segment"
+                  id="vertical-button"
+                  data-orientation="v"
+                  type="button"
+                  aria-pressed="false"
+                >
+                  <span aria-hidden="true">↕</span> 纵向
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section class="status-panel" aria-labelledby="status-heading">
+            <div class="section-heading">
+              <h2 id="status-heading">棋局记录</h2>
+              <span id="move-count">0 步</span>
+            </div>
+            <div class="last-action" id="last-action">
+              <span class="last-action-mark" aria-hidden="true">·</span>
+              <div>
+                <span>上一手</span>
+                <strong>等待开局</strong>
+              </div>
+            </div>
+            <div class="ai-metrics" id="ai-metrics" hidden>
+              <span>AI 搜索</span>
+              <strong id="ai-metrics-value">深度 0 · 0 节点</strong>
+            </div>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <dialog class="setup-dialog" id="setup-dialog" aria-labelledby="setup-title">
+      <form class="setup-form" id="setup-form" method="dialog">
+        <div class="dialog-heading">
+          <span class="brand-mark" aria-hidden="true">Q</span>
+          <div>
+            <p class="eyebrow">QUORIDOR</p>
+            <h2 id="setup-title">开始新对局</h2>
+          </div>
+        </div>
+
+        <fieldset>
+          <legend>游戏模式</legend>
+          <div class="choice-grid choice-grid-three" data-mode-options>
+            <label class="choice-option" data-mode-option="human">
+              <input type="radio" name="game-mode" value="human" checked />
+              <span>
+                <strong>本地双人</strong>
+                <small>两位玩家轮流行动</small>
+              </span>
+            </label>
+            <label class="choice-option" data-mode-option="ai">
+              <input type="radio" name="game-mode" value="ai" />
+              <span>
+                <strong>挑战 AI</strong>
+                <small>与电脑在本机对战</small>
+              </span>
+            </label>
+            <label class="choice-option" data-mode-option="ai-vs-ai">
+              <input type="radio" name="game-mode" value="ai-vs-ai" />
+              <span>
+                <strong>AI 对弈</strong>
+                <small>双方自动连续行动</small>
+              </span>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset data-setup-section="perspective">
+          <legend>棋盘视角</legend>
+          <div class="choice-grid choice-grid-two compact-choices">
+            <label class="choice-option">
+              <input type="radio" name="bottom-player" value="0" checked />
+              <span><strong>红方在下</strong><small>蓝方在上</small></span>
+            </label>
+            <label class="choice-option">
+              <input type="radio" name="bottom-player" value="1" />
+              <span><strong>蓝方在下</strong><small>红方在上</small></span>
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="ai-setup" id="ai-setup" data-setup-section="ai" hidden>
+          <fieldset id="human-side-setup" data-setup-section="human-side">
+            <legend>先后手</legend>
+            <div class="choice-grid choice-grid-two compact-choices">
+              <label class="choice-option">
+                <input type="radio" name="human-side" value="0" checked />
+                <span><strong>你先手</strong><small>执红方</small></span>
+              </label>
+              <label class="choice-option">
+                <input type="radio" name="human-side" value="1" />
+                <span><strong>AI 先手</strong><small>你执蓝方</small></span>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset data-setup-section="difficulty">
+            <legend>AI 难度</legend>
+            <div class="difficulty-options">
+              <label>
+                <input type="radio" name="difficulty" value="easy" />
+                <span>简单</span>
+              </label>
+              <label>
+                <input type="radio" name="difficulty" value="medium" checked />
+                <span>标准</span>
+              </label>
+              <label>
+                <input type="radio" name="difficulty" value="hard" />
+                <span>困难</span>
+              </label>
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="dialog-actions">
+          <button class="text-button" id="cancel-setup-button" type="button">取消</button>
+          <button
+            class="primary-button"
+            id="start-game-button"
+            data-action="start-game"
+            type="submit"
+            value="start"
+          >
+            开始对局
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="game-over-dialog" id="game-over-dialog" aria-labelledby="winner-title">
+      <div class="winner-content">
+        <span class="winner-token" id="winner-token" aria-hidden="true"></span>
+        <p class="eyebrow">对局结束</p>
+        <h2 id="winner-title">红方获胜</h2>
+        <p id="winner-summary">率先抵达对边</p>
+        <div class="dialog-actions centered-actions">
+          <button class="secondary-button" id="review-button" type="button">查看棋局</button>
+          <button class="primary-button" id="play-again-button" type="button">再来一局</button>
+        </div>
+      </div>
+    </dialog>
+
+    <div class="toast" id="toast" role="alert" aria-live="assertive" hidden></div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,39 @@
+{
+  "name": "smoke",
+  "seed": 20260712,
+  "device": "auto",
+  "runDir": "training/runs/smoke",
+  "artifactLimitBytes": 8589934592,
+  "network": {
+    "channels": 32,
+    "residualBlocks": 2,
+    "seReduction": 8,
+    "policyChannels": 8,
+    "valueChannels": 8,
+    "valueHidden": 64
+  },
+  "mcts": {
+    "simulations": 4,
+    "cBase": 19652,
+    "cInit": 1.25,
+    "dirichletEpsilon": 0.25,
+    "dirichletAlpha": null
+  },
+  "selfPlay": {
+    "games": 1,
+    "temperatureMoves": 12,
+    "actors": 1
+  },
+  "training": {
+    "replayCapacity": 2048,
+    "batchSize": 8,
+    "learningRate": 0.001,
+    "weightDecay": 0.0001,
+    "trainingSteps": 4,
+    "maxCheckpoints": 2
+  },
+  "arena": {
+    "games": 2,
+    "simulations": 2
+  }
+}
