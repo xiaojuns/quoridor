@@ -554,17 +554,21 @@ policy loss，value loss 仅使用本轮 self-play 的真实终局标签。这�
 F36 已观察到的教师 value 分布干扰。历史配置缺省仍使用全部 value 标签，因此旧阶段语义哈希不变。
 
 F37 preparation report 位于
-`training/runs/phase4/phase4f/f37-policy-only-preparation-v1/preparation-report.json`，自哈希为
-`d4497494dbd7ea32a3320efedf330d71e5fb428bff637a4e7353c20a78690da9`。F38 config 文件哈希为
-`e81d57222ae69260007e315be6a76c69c9fe3a7992275ee05e3803418d7749d5`，语义哈希为
-`a19560e4074e23884cdc8000b4328350967ff22afd8df705a7a6bca11c3fc6af`；execution contract
+`training/runs/phase4/phase4f/f37-policy-only-preparation-v2/preparation-report.json`，自哈希为
+`a666d1e1e0f87a96b01d2709016312c13227954ef282799ed5374be5cb6f1a9b`。F38 v1 在训练初始化前失败：
+配置将 seed 改为 `20260821`，但错误沿用了 seed `20260820` 的随机基模哈希。v2 不修改或删除 v1
+失败证据，而是重新计算基模哈希 `041091569c71e0de5f35e93d5b1bb5531276a057284c519f8256c64af2b07376`，
+并使用独立 run directory。F38 v2 config 文件哈希为
+`8abe3104afe6f9be3760ee2856488e00f484bdd7ee23f13548ea75b6cec7d836`，语义哈希为
+`10c784a68ccd103c56f59df80c840b9984bb5b532a76dee9530d9f050cb2ac48`；execution contract
 文件哈希与语义哈希均为
 `81bcf9ea1ac2ca43d512bfd6a84ee833d5df71678f0106e3e219bbea94a8122b`。
 
 用户批准的产物上限扩展为 `16 GiB`。代码保留旧阶段的 8/12 GiB 档位，并新增显式 16 GiB 档位，
 不会重新解释历史冻结工件。F38 仍为单代、128 局、512 simulations、96 optimizer steps，阶段预算
 为 2 GPU-hours。冻结时 global ledger 为 `76.73485952769691 GPU-hours`，Phase 4 产物约
-`10.87 GiB / 16 GiB`，空闲磁盘约 `60.6 GiB`。必须单独确认后才能运行：
+`10.87 GiB / 16 GiB`，空闲磁盘约 `60.6 GiB`。修复不重置阶段预算，绝对截止仍为
+`78.73485952769691 GPU-hours`。必须单独确认后才能运行：
 
 ```bash
 ./scripts/run-phase4f38-stage-a2-policy-only-pilot.sh \

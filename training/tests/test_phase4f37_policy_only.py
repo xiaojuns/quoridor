@@ -13,8 +13,10 @@ from quoridor.phase4f37_policy_only import (
     EXECUTION,
     F21_CANDIDATE_SHA256,
     F36_SOURCE_GIT_COMMIT,
+    PILOT_SEED,
     REPORT,
     RUN_DIR,
+    _base_model_sha256,
     _generation_data,
 )
 from quoridor.run_manifest import (
@@ -62,9 +64,17 @@ class Phase4F37PolicyOnlyTests(unittest.TestCase):
     def test_policy_only_pilot_is_isolated_and_uses_extended_cap(self) -> None:
         config = load_experiment_config(ROOT / CONFIG)
         execution = load_phase4_execution_contract(ROOT / EXECUTION)
-        self.assertEqual(config.name, "phase4f38-stage-a2-policy-only-pilot-v1")
+        self.assertEqual(config.name, "phase4f38-stage-a2-policy-only-pilot-v2")
         self.assertEqual(config.run_dir, RUN_DIR)
-        self.assertEqual(config.seed, 20260821)
+        self.assertEqual(config.seed, PILOT_SEED)
+        self.assertEqual(
+            config.initialization.expected_base_model_sha256,
+            _base_model_sha256(PILOT_SEED),
+        )
+        self.assertNotEqual(
+            config.initialization.expected_base_model_sha256,
+            _base_model_sha256(20260820),
+        )
         self.assertEqual(config.artifact_limit_bytes, EXTENDED_ARTIFACT_LIMIT_BYTES)
         self.assertEqual(config.initialization.artifact_sha256, F21_CANDIDATE_SHA256)
         self.assertTrue(config.initialization.reset_optimizer)

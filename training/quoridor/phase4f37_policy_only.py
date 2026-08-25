@@ -12,18 +12,18 @@ from pathlib import Path
 from typing import Mapping, Sequence
 
 from .calibration import GPU_LEDGER_NAME, GpuBudgetLedger
-from .config import ExperimentConfig, load_experiment_config
+from .config import ExperimentConfig, load_experiment_config, seed_everything
+from .network import NetworkConfig, PolicyValueNetwork
 from .paired_arena import loaded_native_backend_hash
 from .phase4_budget import (
     PHASE4_CONTROL_RELATIVE,
     PHASE4F38_PILOT_STAGE,
 )
 from .phase4_execution import (
-    PHASE4_BUDGET_STATUS_FROZEN,
-    PHASE4_EXECUTION_STATUS_FROZEN,
     Phase4ExecutionContract,
     load_phase4_execution_contract,
 )
+from .phase4_checkpoint import canonical_model_state_sha256
 from .phase4_training import validate_phase4_config
 from .run_manifest import (
     DEFAULT_MINIMUM_FREE_DISK_BYTES,
@@ -55,13 +55,14 @@ F21_MANIFEST_SHA256 = "96fc1f063bbbab0716da03228578d2eb23b062e708823ed68ebd0a8ba
 F21_REPORT_SHA256 = "d85b8ea361afb706991a18c943ead9c8477b93563cdbc4aaaee6a2921ea5f8e7"
 F21_CANDIDATE_SHA256 = "1ab9a6350178436c6cbf39fe76bb65ff31dace15bbd0a2ef670624d79a984b01"
 F36_CONFIG = Path("training/configs/phase4f36-stage-a2-pilot-v2.json")
-ROOT = Path("training/runs/phase4/phase4f/f37-policy-only-preparation-v1")
+ROOT = Path("training/runs/phase4/phase4f/f37-policy-only-preparation-v2")
 REPORT = ROOT / "preparation-report.json"
-CONFIG = Path("training/configs/phase4f38-stage-a2-policy-only-pilot-v1.json")
+CONFIG = Path("training/configs/phase4f38-stage-a2-policy-only-pilot-v2.json")
 EXECUTION = Path(
     "training/configs/phase4f38-stage-a2-policy-only-pilot-execution-frozen-v1.json"
 )
-RUN_DIR = Path("training/runs/phase4/phase4f/stage-a2-policy-only-pilot-v1")
+RUN_DIR = Path("training/runs/phase4/phase4f/stage-a2-policy-only-pilot-v2")
+PILOT_SEED = 20260821
 PILOT_GPU_HOURS = 2.0
 ARTIFACT_RESERVE_BYTES = 1250 * 1024**2
 EXPECTED_TRAINING_STEPS = 96
@@ -359,42 +360,53 @@ def _effective_config(workspace: Path) -> ExperimentConfig:
     return replace(config, run_dir=(workspace / config.run_dir).resolve())
 
 
+def _base_model_sha256(seed: int) -> str:
+    seed_everything(seed)
+    return canonical_model_state_sha256(
+        PolicyValueNetwork(
+            NetworkConfig(input_channels=16, channels=192, blocks=16)
+        )
+    )
+
+
 def prepare_phase4f37(workspace_root: str | Path) -> dict[str, object]:
     workspace = Path(workspace_root).resolve()
     audit = _audit_f36(workspace)
     snapshot = _ledger_snapshot(workspace)
-    baseline_hours = float(snapshot["totalGpuHours"])
-    if baseline_hours + PILOT_GPU_HOURS > 120.0:
+    execution = load_phase4_execution_contract(workspace / EXECUTION)
+    if (
+        execution.stage != PHASE4F38_PILOT_STAGE
+        or execution.maximum_generations != 1
+        or execution.formal_promotion
+        or execution.stage_budget.baseline_run_id != "phase4f36-stage-a2-pilot-v2"
+        or execution.stage_budget.baseline_report_sha256 != F36_REPORT_SHA256
+        or execution.stage_budget.limit_hours != PILOT_GPU_HOURS
+    ):
+        raise Phase4F37Error("F38 execution contract is not the frozen pilot contract")
+    maximum_global_hours = (
+        execution.stage_budget.baseline_global_hours
+        + execution.stage_budget.limit_hours
+    )
+    if float(snapshot["totalGpuHours"]) > maximum_global_hours:
+        raise Phase4F37Error("the frozen F38 pilot GPU-hour envelope was exceeded")
+    if maximum_global_hours > 120.0:
         raise Phase4F37Error("the global 120 GPU-hour budget cannot fit F38")
 
     config_payload = _mapping(workspace / F36_CONFIG, "F36 config")
-    config_payload["name"] = "phase4f38-stage-a2-policy-only-pilot-v1"
+    config_payload["name"] = "phase4f38-stage-a2-policy-only-pilot-v2"
     config_payload["runDir"] = RUN_DIR.as_posix()
-    config_payload["seed"] = 20260821
+    config_payload["seed"] = PILOT_SEED
     config_payload["artifactLimitBytes"] = EXTENDED_ARTIFACT_LIMIT_BYTES
+    initialization = config_payload.get("initialization")
+    if not isinstance(initialization, dict):
+        raise Phase4F37Error("F36 initialization config is missing")
+    initialization["expectedBaseModelSha256"] = _base_model_sha256(PILOT_SEED)
     challenge = config_payload.get("training", {}).get("challengeReplay")
     if not isinstance(challenge, dict):
         raise Phase4F37Error("F36 challenge config is missing")
     challenge["valueTargetMode"] = "self-play-only"
-    execution_payload = {
-        "schemaVersion": 1,
-        "stage": PHASE4F38_PILOT_STAGE,
-        "status": PHASE4_EXECUTION_STATUS_FROZEN,
-        "purpose": "phase4f38-stage-a2-policy-only-guidance-pilot",
-        "formalPromotion": False,
-        "maximumGenerations": 1,
-        "stageBudget": {
-            "status": PHASE4_BUDGET_STATUS_FROZEN,
-            "baselineGlobalHours": baseline_hours,
-            "limitHours": PILOT_GPU_HOURS,
-            "baselineRunId": "phase4f36-stage-a2-pilot-v2",
-            "baselineReportSha256": F36_REPORT_SHA256,
-        },
-    }
     _write_immutable(workspace / CONFIG, config_payload, "F38 pilot config")
-    _write_immutable(workspace / EXECUTION, execution_payload, "F38 execution contract")
     config = _effective_config(workspace)
-    execution = load_phase4_execution_contract(workspace / EXECUTION)
     validate_phase4_config(config, execution)
     if (
         config.training.challenge_replay is None
@@ -437,10 +449,11 @@ def prepare_phase4f37(workspace_root: str | Path) -> dict[str, object]:
                 "executionSha256": execution.sha256,
                 "maximumGenerations": 1,
                 "stageGpuHours": PILOT_GPU_HOURS,
+                "maximumGlobalHours": maximum_global_hours,
             },
             "resources": _resources(workspace),
             "nextStage": {
-                "name": "Phase 4F38 run isolated policy-only Stage A2 pilot",
+                "name": "Phase 4F38 run corrected isolated policy-only Stage A2 pilot",
                 "requiresSeparateUserConfirmation": True,
             },
         },
@@ -460,9 +473,7 @@ def _verified_preparation(workspace: Path) -> dict[str, object]:
         or report.get("source") != fingerprint_sources(workspace).to_payload()
     ):
         raise Phase4F37Error("F37 preparation is stale")
-    maximum = float(report["gpuLedger"]["totalGpuHours"]) + float(
-        report["pilot"]["stageGpuHours"]
-    )
+    maximum = float(report["pilot"]["maximumGlobalHours"])
     _verify_ledger_append_only(workspace, report["gpuLedger"], maximum)
     for path, key in ((CONFIG, "configFileSha256"), (EXECUTION, "executionFileSha256")):
         if sha256_file(workspace / path) != report["pilot"][key]:

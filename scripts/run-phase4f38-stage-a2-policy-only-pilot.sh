@@ -4,9 +4,9 @@ set -Eeuo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${QUORIDOR_NATIVE_BUILD_DIR:-${ROOT_DIR}/native/build}"
 CONTROL_ROOT="${ROOT_DIR}/training/runs/phase4"
-CONFIG="${ROOT_DIR}/training/configs/phase4f38-stage-a2-policy-only-pilot-v1.json"
+CONFIG="${ROOT_DIR}/training/configs/phase4f38-stage-a2-policy-only-pilot-v2.json"
 EXECUTION="${ROOT_DIR}/training/configs/phase4f38-stage-a2-policy-only-pilot-execution-frozen-v1.json"
-RUN_DIR="${ROOT_DIR}/training/runs/phase4/phase4f/stage-a2-policy-only-pilot-v1"
+RUN_DIR="${ROOT_DIR}/training/runs/phase4/phase4f/stage-a2-policy-only-pilot-v2"
 DEVICE_INDEX=0
 GPU_HOURS_USED=0
 
