@@ -2,7 +2,7 @@
 
 import readline from 'node:readline';
 
-import { chooseAIMove } from '../src/ai.js';
+import { analyzeAIMoves, chooseAIMove } from '../src/ai.js';
 import { getLegalActions, getWinner } from '../src/game.js';
 import { CODEC_VERSION, positionHash } from '../src/alphazero/state-codec.js';
 
@@ -256,6 +256,52 @@ function handleChoose(request) {
   };
 }
 
+function handleAnalyze(request) {
+  const budget = parseBudget(request.budget);
+  const maxDepth =
+    request.maxDepth === undefined
+      ? HARD_MAX_DEPTH
+      : integer(request.maxDepth, 'maxDepth', 1, 12);
+  const restored = restoreState(request.state, request.positionHash);
+  const options = { difficulty: 'hard', maxDepth };
+  if (budget.kind === 'nodes') {
+    options.nodeLimit = budget.limit;
+    options.timeLimitMs = NODE_BUDGET_TIME_LIMIT_MS;
+  } else {
+    options.timeLimitMs = budget.limit;
+  }
+  const result = analyzeAIMoves(restored.state, options);
+  requestError(
+    result.action !== null && typeof result.action === 'object',
+    'engine-error',
+    'classic AI returned no action for a non-terminal state',
+  );
+  requestError(
+    result.rootScoreKind === 'alpha-beta-return-v1' && Array.isArray(result.rootScores),
+    'engine-error',
+    'classic AI returned malformed root analysis',
+  );
+  const afterHash = positionHash(restored.state);
+  requestError(afterHash === restored.actualHash, 'engine-error', 'classic AI mutated the request state');
+  return {
+    version: PROTOCOL_VERSION,
+    type: 'analysis',
+    id: request.id,
+    engine: ENGINE,
+    positionHash: afterHash,
+    historyEntries: restored.historyEntries,
+    historyOccurrences: restored.historyOccurrences,
+    budget,
+    action: result.action,
+    score: result.score,
+    depth: result.depth,
+    nodes: result.nodes,
+    elapsedMs: result.elapsedMs,
+    rootScoreKind: result.rootScoreKind,
+    rootScores: result.rootScores,
+  };
+}
+
 function errorResponse(id, error) {
   const source = error instanceof Error ? error : new Error(String(error));
   return {
@@ -298,8 +344,12 @@ function handleLine(line) {
       });
       return true;
     }
-    requestError(request.type === 'choose', 'invalid-request', 'unsupported request type');
-    writeMessage(handleChoose(request));
+    requestError(
+      request.type === 'choose' || request.type === 'analyze',
+      'invalid-request',
+      'unsupported request type',
+    );
+    writeMessage(request.type === 'analyze' ? handleAnalyze(request) : handleChoose(request));
   } catch (error) {
     writeMessage(errorResponse(request?.id, error));
   }

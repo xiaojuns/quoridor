@@ -10,6 +10,7 @@ import {
 } from '../src/game.js';
 import {
   WIN_SCORE,
+  analyzeAIMoves,
   chooseAIMove,
   getCandidateActions,
   rankWallCandidates,
@@ -126,4 +127,25 @@ test('node budget is deterministic and does not exceed its explicit limit', () =
   assert.equal(zero.nodes, 0);
   assert.equal(zero.depth, 0);
   assert.ok(containsAction(getLegalActions(state), zero.action));
+});
+
+test('root analysis exposes actual searched scores and preserves classic choice', () => {
+  const state = createInitialState();
+  const options = {
+    difficulty: 'hard',
+    maxDepth: 5,
+    timeLimitMs: 60_000,
+    nodeLimit: 587,
+  };
+  const choice = chooseAIMove(state, options);
+  const analysis = analyzeAIMoves(state, options);
+
+  assert.deepEqual(analysis.action, choice.action);
+  assert.equal(analysis.score, choice.score);
+  assert.equal(analysis.depth, choice.depth);
+  assert.equal(analysis.nodes, choice.nodes);
+  assert.equal(analysis.rootScoreKind, 'alpha-beta-return-v1');
+  assert.equal(analysis.rootScores.length, getLegalActions(state).length);
+  assert.ok(analysis.rootScores.some((entry) => entry.searched && Number.isFinite(entry.score)));
+  assert.ok(analysis.rootScores.some((entry) => !entry.searched && entry.score === null));
 });

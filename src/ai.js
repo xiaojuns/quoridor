@@ -372,7 +372,7 @@ function negamax(state, depth, alpha, beta, ply, context) {
   return bestScore;
 }
 
-function searchRoot(state, depth, context, preferredAction) {
+function searchRoot(state, depth, context, preferredAction, collectScores = false) {
   const player = currentPlayerOf(state);
   const actions = getCandidateActions(state, {
     difficulty: context.difficulty,
@@ -386,6 +386,7 @@ function searchRoot(state, depth, context, preferredAction) {
   const beta = Infinity;
   let bestAction = actions[0];
   let bestScore = -Infinity;
+  const scores = [];
 
   for (const action of actions) {
     checkDeadline(context, true);
@@ -395,6 +396,7 @@ function searchRoot(state, depth, context, preferredAction) {
       winner !== null && winner !== undefined && samePlayer(winner, player)
         ? WIN_SCORE - 1
         : -negamax(child, depth - 1, -beta, -alpha, 1, context);
+    if (collectScores) scores.push({ action, score });
     if (score > bestScore) {
       bestScore = score;
       bestAction = action;
@@ -402,7 +404,119 @@ function searchRoot(state, depth, context, preferredAction) {
     alpha = Math.max(alpha, score);
   }
 
-  return { action: bestAction, score: bestScore };
+  return { action: bestAction, score: bestScore, scores };
+}
+
+/**
+ * Runs the same iterative-deepening search as hard/medium move selection while
+ * retaining the root scores from the deepest fully completed iteration.
+ * Scores are the actual alpha-beta returns used by the classic engine; actions
+ * pruned by its root wall-candidate filter are reported as unsearched.
+ */
+export function analyzeAIMoves(state, options = {}) {
+  const startedAt = now();
+  const difficulty = DIFFICULTY[options.difficulty] ? options.difficulty : 'hard';
+  if (difficulty === 'easy') throw new RangeError('root analysis requires medium or hard difficulty');
+  const config = DIFFICULTY[difficulty];
+  const requestedLimit = Number(options.timeLimitMs);
+  const timeLimitMs = Number.isFinite(requestedLimit)
+    ? Math.max(0, requestedLimit)
+    : config.timeLimitMs;
+  const requestedDepth = Number(options.maxDepth);
+  const maxDepth = Number.isFinite(requestedDepth)
+    ? Math.max(1, Math.min(12, Math.floor(requestedDepth)))
+    : config.maxDepth;
+  const requestedNodeLimit = Number(options.nodeLimit);
+  const nodeLimit = Number.isFinite(requestedNodeLimit)
+    ? Math.max(0, Math.floor(requestedNodeLimit))
+    : Infinity;
+  const legalActions = getLegalActions(state);
+
+  if (!Array.isArray(legalActions) || legalActions.length === 0) {
+    return {
+      action: null,
+      score: evaluateState(state, currentPlayerOf(state)),
+      depth: 0,
+      nodes: 0,
+      elapsedMs: now() - startedAt,
+      rootScoreKind: 'alpha-beta-return-v1',
+      rootScores: [],
+    };
+  }
+
+  let bestAction = legalActions[0];
+  let bestScore = evaluateState(state, currentPlayerOf(state));
+  let completedDepth = 0;
+  let completedScores = [];
+  const context = {
+    difficulty,
+    deadline: startedAt + timeLimitMs,
+    nodeLimit,
+    nodes: 0,
+    table: new Map(),
+  };
+
+  try {
+    const player = currentPlayerOf(state);
+    for (const action of legalActions) {
+      if (isWallAction(action)) continue;
+      consumeNode(context);
+      const child = nextState(state, action);
+      const winner = getWinner(child);
+      if (winner !== null && winner !== undefined && samePlayer(winner, player)) {
+        return {
+          action,
+          score: WIN_SCORE - 1,
+          depth: 1,
+          nodes: context.nodes,
+          elapsedMs: now() - startedAt,
+          rootScoreKind: 'alpha-beta-return-v1',
+          rootScores: legalActions.map((legalAction) => ({
+            action: legalAction,
+            searched: actionsEqual(legalAction, action),
+            score: actionsEqual(legalAction, action) ? WIN_SCORE - 1 : null,
+          })),
+        };
+      }
+    }
+
+    for (let depth = 1; depth <= maxDepth; depth += 1) {
+      checkDeadline(context, true);
+      const result = searchRoot(state, depth, context, bestAction, true);
+      if (result.action) {
+        bestAction = result.action;
+        bestScore = result.score;
+        completedDepth = depth;
+        completedScores = result.scores;
+      }
+      if (Math.abs(bestScore) >= WIN_SCORE - depth) break;
+    }
+  } catch (error) {
+    if (error !== TIMEOUT) throw error;
+  }
+
+  if (!legalActions.some((action) => actionsEqual(action, bestAction))) {
+    bestAction = legalActions[0];
+  }
+  const scoreByAction = new Map(
+    completedScores.map((entry) => [actionKey(entry.action), entry.score]),
+  );
+  return {
+    action: bestAction,
+    score: bestScore,
+    depth: completedDepth,
+    nodes: context.nodes,
+    elapsedMs: now() - startedAt,
+    rootScoreKind: 'alpha-beta-return-v1',
+    rootScores: legalActions.map((action) => {
+      const key = actionKey(action);
+      return {
+        action,
+        searched: scoreByAction.has(key),
+        score: scoreByAction.has(key) ? scoreByAction.get(key) : null,
+      };
+    }),
+  };
 }
 
 function chooseWeighted(ranked, random) {

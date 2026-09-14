@@ -99,6 +99,31 @@ class ClassicBridgeResult:
     engine: str = CLASSIC_ENGINE
 
 
+@dataclass(frozen=True, slots=True)
+class ClassicRootScore:
+    action_index: int
+    action: Mapping[str, object]
+    searched: bool
+    score: float | None
+
+
+@dataclass(frozen=True, slots=True)
+class ClassicAnalysisResult:
+    action_index: int
+    action: Mapping[str, object]
+    score: float
+    depth: int
+    nodes: int
+    elapsed_ms: float
+    position_hash: str
+    history_entries: int
+    history_occurrences: int
+    budget: ClassicSearchBudget
+    root_scores: tuple[ClassicRootScore, ...]
+    root_score_kind: str = "alpha-beta-return-v1"
+    engine: str = CLASSIC_ENGINE
+
+
 _EOF = object()
 
 
@@ -406,6 +431,108 @@ class ClassicAIBridge:
                 raise
             return result
 
+    def analyze(
+        self,
+        state: State,
+        *,
+        budget: ClassicSearchBudget | None = None,
+        max_depth: int = HARD_MAX_DEPTH,
+        timeout: float | None = None,
+    ) -> ClassicAnalysisResult:
+        """Return the classic engine's deepest complete root-score vector."""
+
+        if not isinstance(state, State):
+            raise TypeError("state must be a quoridor.game.State")
+        budget = budget or ClassicSearchBudget.time()
+        if not isinstance(budget, ClassicSearchBudget):
+            raise TypeError("budget must be a ClassicSearchBudget")
+        if type(max_depth) is not int or not 1 <= max_depth <= 12:
+            raise ValueError("max_depth must be an integer in [1, 12]")
+        selected_timeout = self._request_timeout if timeout is None else self._positive_timeout(timeout, "timeout")
+        try:
+            state_payload = state_to_opening_payload(state)
+            restored = state_from_opening_payload(state_payload)
+        except OpeningValidationError as error:
+            raise ValueError(f"classic bridge requires a complete state/history: {error}") from error
+        if state_to_opening_payload(restored) != state_payload:
+            raise ValueError("classic bridge state did not round-trip with full history")
+        expected_hash = position_hash(state)
+        legal_actions = frozenset(legal_action_indices(state))
+        if not legal_actions:
+            raise ValueError("classic bridge cannot analyze a terminal state")
+        history_entries = len(state.position_counts)
+        history_occurrences = sum(state.position_counts.values())
+
+        with self._lock:
+            try:
+                self._ensure_open()
+                request_id = self._next_id()
+                self._send(
+                    {
+                        "version": BRIDGE_PROTOCOL_VERSION,
+                        "type": "analyze",
+                        "id": request_id,
+                        "positionHash": expected_hash,
+                        "state": state_payload,
+                        "budget": budget.to_payload(),
+                        "maxDepth": max_depth,
+                    }
+                )
+                response = self._response_for(self._receive(selected_timeout), request_id, "analysis")
+                choice = self._parse_result(
+                    response,
+                    state=state,
+                    expected_hash=expected_hash,
+                    legal_actions=legal_actions,
+                    expected_history_entries=history_entries,
+                    expected_history_occurrences=history_occurrences,
+                    budget=budget,
+                )
+                if response.get("rootScoreKind") != "alpha-beta-return-v1":
+                    raise ClassicBridgeProtocolError("classic root score kind mismatch")
+                raw_scores = response.get("rootScores")
+                if not isinstance(raw_scores, list) or len(raw_scores) != len(legal_actions):
+                    raise ClassicBridgeProtocolError("classic root scores must cover every legal action")
+                parsed: list[ClassicRootScore] = []
+                seen: set[int] = set()
+                for offset, entry in enumerate(raw_scores):
+                    if not isinstance(entry, Mapping) or not isinstance(entry.get("action"), Mapping):
+                        raise ClassicBridgeProtocolError(f"rootScores[{offset}] is malformed")
+                    try:
+                        action_index = encode_action(entry["action"])
+                    except (TypeError, ValueError) as error:
+                        raise ClassicBridgeProtocolError(f"rootScores[{offset}] action is invalid") from error
+                    if action_index not in legal_actions or action_index in seen:
+                        raise ClassicBridgeProtocolError("classic root scores contain illegal or duplicate actions")
+                    seen.add(action_index)
+                    searched = entry.get("searched")
+                    if type(searched) is not bool:
+                        raise ClassicBridgeProtocolError("classic root score searched flag is invalid")
+                    raw_score = entry.get("score")
+                    score = self._finite_number(raw_score, "root score") if searched else None
+                    if not searched and raw_score is not None:
+                        raise ClassicBridgeProtocolError("unsearched classic root action has a score")
+                    parsed.append(ClassicRootScore(action_index, dict(entry["action"]), searched, score))
+                if seen != set(legal_actions):
+                    raise ClassicBridgeProtocolError("classic root scores omit legal actions")
+            except (ClassicBridgeTimeout, ClassicBridgeCrashed, ClassicBridgeProtocolError):
+                self._terminate_process()
+                self._closed = True
+                raise
+        return ClassicAnalysisResult(
+            action_index=choice.action_index,
+            action=choice.action,
+            score=choice.score,
+            depth=choice.depth,
+            nodes=choice.nodes,
+            elapsed_ms=choice.elapsed_ms,
+            position_hash=choice.position_hash,
+            history_entries=choice.history_entries,
+            history_occurrences=choice.history_occurrences,
+            budget=choice.budget,
+            root_scores=tuple(parsed),
+        )
+
     def _parse_result(
         self,
         response: Mapping[str, object],
@@ -557,5 +684,7 @@ __all__ = [
     "ClassicBridgeRemoteError",
     "ClassicSearchBudget",
     "ClassicBridgeResult",
+    "ClassicRootScore",
+    "ClassicAnalysisResult",
     "ClassicAIBridge",
 ]
