@@ -225,8 +225,12 @@ def _replay_orbits(workspace: Path, relative: Path) -> tuple[set[str], dict[str,
 def _arena_references(workspace: Path) -> list[dict[str, object]]:
     phase4f = workspace / "training/runs/phase4/phase4f"
     references: list[dict[str, object]] = []
-    for path in sorted(phase4f.glob("*/screen-arena/result.json")):
-        result = _mapping(path, "historical screen result")
+    result_paths = {
+        *phase4f.glob("*/screen-arena/result.json"),
+        *phase4f.glob("*/confirmation-arena/result.json"),
+    }
+    for path in sorted(result_paths):
+        result = _mapping(path, "historical arena result")
         if result.get("status") != "completed" or not isinstance(result.get("resultSha256"), str):
             continue
         references.append(
@@ -238,7 +242,7 @@ def _arena_references(workspace: Path) -> list[dict[str, object]]:
             }
         )
     if not references:
-        raise Phase4F29FreshScreenError("no historical Phase 4F screens found")
+        raise Phase4F29FreshScreenError("no historical Phase 4F arenas found")
     return references
 
 
