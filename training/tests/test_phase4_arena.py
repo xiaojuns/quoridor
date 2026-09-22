@@ -611,6 +611,101 @@ class Phase4ArenaTests(unittest.TestCase):
             recovered = OpeningPairStore(temporary, **arguments)
             self.assertEqual(recovered.completed_pairs, 1)
 
+    def test_incremental_commit_does_not_replay_known_pair(self) -> None:
+        candidate = GoalSelector("candidate")
+        opponent = GoalSelector("opponent")
+        candidate_identity, candidate_runtime = _resolve_participant(
+            candidate, None, "candidate"
+        )
+        opponent_identity, opponent_runtime = _resolve_participant(
+            opponent, None, "opponent"
+        )
+        arguments = {
+            "contract_sha256": self.contract_sha256,
+            "suite": self.suite,
+            "candidate_identity": candidate_identity,
+            "opponent_identity": opponent_identity,
+            "candidate_runtime": candidate_runtime,
+            "opponent_runtime": opponent_runtime,
+        }
+        games = []
+        for source in self.suite.openings:
+            opening = _snapshot_opening(source)
+            games.append(
+                tuple(
+                    _play_leg(
+                        self.suite,
+                        opening,
+                        leg,
+                        candidate,
+                        opponent,
+                        candidate_identity,
+                        opponent_identity,
+                        candidate_runtime,
+                        opponent_runtime,
+                    )
+                    for leg in _validated_legs(opening)
+                )
+            )
+        with tempfile.TemporaryDirectory() as temporary:
+            store = OpeningPairStore(temporary, **arguments)
+            store.commit_pair(0, games[0])
+            with patch.object(
+                store,
+                "_validate_pair_payload",
+                wraps=store._validate_pair_payload,
+            ) as validate:
+                store.commit_pair(1, games[1])
+            self.assertEqual(validate.call_count, 1)
+            self.assertEqual(store.completed_pairs, 2)
+
+    def test_incremental_commit_rejects_changed_known_pair(self) -> None:
+        candidate = GoalSelector("candidate")
+        opponent = GoalSelector("opponent")
+        candidate_identity, candidate_runtime = _resolve_participant(
+            candidate, None, "candidate"
+        )
+        opponent_identity, opponent_runtime = _resolve_participant(
+            opponent, None, "opponent"
+        )
+        arguments = {
+            "contract_sha256": self.contract_sha256,
+            "suite": self.suite,
+            "candidate_identity": candidate_identity,
+            "opponent_identity": opponent_identity,
+            "candidate_runtime": candidate_runtime,
+            "opponent_runtime": opponent_runtime,
+        }
+        games = []
+        for source in self.suite.openings:
+            opening = _snapshot_opening(source)
+            games.append(
+                tuple(
+                    _play_leg(
+                        self.suite,
+                        opening,
+                        leg,
+                        candidate,
+                        opponent,
+                        candidate_identity,
+                        opponent_identity,
+                        candidate_runtime,
+                        opponent_runtime,
+                    )
+                    for leg in _validated_legs(opening)
+                )
+            )
+        with tempfile.TemporaryDirectory() as temporary:
+            store = OpeningPairStore(temporary, **arguments)
+            artifact = store.commit_pair(0, games[0])
+            path = Path(temporary) / artifact.file_name
+            path.write_bytes(path.read_bytes() + b"x")
+            with self.assertRaisesRegex(
+                Phase4ArenaCorruptionError,
+                "changed after validation",
+            ):
+                store.commit_pair(1, games[1])
+
     def test_completed_verifier_rejects_rehashed_missing_plies(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             result_path = self._finalized_single_pair(Path(temporary))

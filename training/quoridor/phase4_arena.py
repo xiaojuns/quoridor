@@ -764,6 +764,54 @@ class OpeningPairStore:
         self._write_progress()
         return tuple(artifacts[index] for index in sorted(artifacts))
 
+    def _refresh_unlocked(self) -> tuple[PairArtifact, ...]:
+        """Merge concurrent commits without replaying known immutable pairs."""
+
+        artifacts = dict(self._artifacts)
+        known_by_file = {
+            artifact.file_name: artifact for artifact in artifacts.values()
+        }
+        seen_files: set[str] = set()
+        for path in sorted(self.root.glob(_PAIR_GLOB)):
+            if path.is_symlink() or not path.is_file():
+                raise Phase4ArenaCorruptionError(
+                    f"pair artifact is not a regular file: {path.name}"
+                )
+            seen_files.add(path.name)
+            known = known_by_file.get(path.name)
+            if known is not None:
+                if (
+                    path.stat().st_size != known.byte_size
+                    or sha256_file(path) != known.sha256
+                ):
+                    raise Phase4ArenaCorruptionError(
+                        f"known pair artifact changed after validation: {path.name}"
+                    )
+                continue
+            artifact = self._validate_pair_payload(
+                _safe_mapping(path, f"pair file {path.name}"),
+                path=path,
+            )
+            previous = artifacts.get(artifact.ordinal)
+            if previous is not None and previous.sha256 != artifact.sha256:
+                raise Phase4ArenaCorruptionError(
+                    f"conflicting pair files for ordinal {artifact.ordinal}"
+                )
+            artifacts[artifact.ordinal] = artifact
+            known_by_file[artifact.file_name] = artifact
+        missing = tuple(
+            artifact.file_name
+            for artifact in self._artifacts.values()
+            if artifact.file_name not in seen_files
+        )
+        if missing:
+            raise Phase4ArenaCorruptionError(
+                f"known pair artifact disappeared: {missing[0]}"
+            )
+        self._artifacts = artifacts
+        self._write_progress()
+        return tuple(artifacts[index] for index in sorted(artifacts))
+
     def reconcile(self) -> tuple[PairArtifact, ...]:
         with self._lock():
             self._cleanup_temporaries_unlocked()
@@ -834,7 +882,7 @@ class OpeningPairStore:
         with self._lock():
             self._cleanup_temporaries_unlocked()
             self._ensure_suite_snapshot_unlocked()
-            self._reconcile_unlocked()
+            self._refresh_unlocked()
             previous = self._artifacts.get(ordinal)
             if previous is not None:
                 if (
