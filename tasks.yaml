@@ -1,0 +1,126 @@
+schema_version: 1
+workstream: quoridor-alphazero-v1
+active_milestone: M0
+stop_after: M0
+milestones:
+  - id: M0
+    title: Executable engineering skeleton
+    status: completed
+    depends_on: []
+    tasks:
+      - Audit current source, local data, models, and saved experiment results.
+      - Publish project entry, behavior/design/evaluation contracts, roadmap, and progress.
+      - Lock dependencies and install an isolated CPU development environment.
+      - Add strict YAML configuration and frozen arena digest verification.
+      - Add JSONL events, unique run provenance, and a finite deadline primitive.
+      - Expose check and explicitly unimplemented smoke/arena/experiment entry points.
+    acceptance:
+      - make install succeeds from training/uv.lock without changing the historical environment.
+      - make check passes pytest and actual Hypothesis properties on CPU with the locked environment.
+      - Changed arena configuration or opening bytes are rejected before execution.
+      - smoke, arena, and experiment report NOT IMPLEMENTED and exit nonzero without starting jobs.
+      - progress.md separates executed verification, historical evidence, and pending implementation.
+    deliverables:
+      - AGENTS.md
+      - docs/spec.md
+      - docs/design.md
+      - docs/eval.md
+      - tasks.yaml
+      - progress.md
+      - Makefile
+      - training/uv.lock
+      - configs
+      - training/quoridor/project_cli.py
+      - training/quoridor/project_config.py
+      - training/quoridor/project_runtime.py
+      - tests/m0
+  - id: M1
+    title: Rule engine, episode outcomes, and reversible action codec
+    status: pending
+    depends_on: [M0]
+    tasks:
+      - Establish immutable board-only engine interfaces and exact episode history.
+      - Implement goal wins, threefold draws, and distinct unlabelled runtime truncation.
+      - Harden state validation, jumps, wall overlap/crossing, and path preservation.
+      - Establish a legacy/new rules boundary for Python, browser, native, and old assets.
+    acceptance:
+      - Engine imports and plays without PyTorch, neural code, or wall-clock dependencies.
+      - All 209 action IDs roundtrip; legal masks match legal transitions with unchanged inputs.
+      - pytest tactical fixtures and Hypothesis reachable-state invariants pass.
+      - Goal, repetition, ply limit, deadline, interruption, and failure have tested precedence and labels.
+      - Any retained native backend passes new-version differential tests without hidden skips.
+  - id: M2
+    title: Versioned encoder and policy/value network
+    status: pending
+    depends_on: [M1]
+    tasks:
+      - Separate engine-derived encoding and legality masking from the tensor-only network.
+      - Resolve and document repetition-history observability and the input feature version.
+      - Implement reversible perspective/mirror transforms for state, history, actions, and policy.
+      - Validate shape, gradients, value calibration diagnostics, and checkpoint metadata.
+    acceptance:
+      - Network accepts synthetic tensors with no game objects and returns finite 209 logits and bounded values.
+      - Value targets, terminal values, canonicalization, and player swaps use current-player-v1 consistently.
+      - Encoder derives rules through the engine; it contains no independent path or legality implementation.
+      - Transformation tests preserve legal policy support and invert actions/history exactly.
+      - Incompatible legacy encoder or rule metadata is rejected by checkpoint load.
+  - id: M3
+    title: Correct and bounded PUCT MCTS
+    status: pending
+    depends_on: [M1, M2]
+    tasks:
+      - Reuse and validate legal expansion, normalized priors, visits, and parent-view edge values.
+      - Add exact outcome leaves, history-aware cache keys, and search-local cycle handling.
+      - Propagate deadlines and separate self-play noise from deterministic evaluation.
+    acceptance:
+      - Deterministic oracle fixtures solve immediate wins and exercise odd/even-depth sign backup.
+      - Every legal action can be expanded; illegal actions receive zero probability and visits.
+      - Visits sum and policy normalization follow a tested versioned convention.
+      - Same board with different history cannot reuse an incorrect terminal decision.
+      - Deadline exhaustion is explicit and no search-local cycle invents a game result.
+  - id: M4
+    title: Self-play, replay, trainer, and actual smoke
+    status: pending
+    depends_on: [M3]
+    tasks:
+      - Collect versioned complete-game records and MCTS visit policy targets.
+      - Train policy/value loss with finite gradients and fresh compatible replay.
+      - Add checkpoint save/reload/resume with RNG, optimizer, model, replay, and lineage checks.
+      - Implement make smoke with a small explicitly bounded end-to-end workload.
+    acceptance:
+      - make smoke performs actual self-play, optimizer updates, checkpoint save, and reload on CPU.
+      - Completed wins/losses/draws receive correct per-sample to_play labels.
+      - Truncated and failed episodes are wholly excluded from baseline replay with counts retained.
+      - Run metadata and JSONL capture code/config/lock/model/replay hashes and elapsed budget use.
+      - Resume is reproducible for declared seeds and rejects incompatible configuration or lineage.
+      - Budget and interruption stop actors/optimizer work and preserve truthful partial-run status.
+  - id: M5
+    title: Frozen paired arena and strength gates
+    status: pending
+    depends_on: [M4]
+    tasks:
+      - Implement make arena with explicit immutable candidate and champion inputs.
+      - Revalidate frozen opening prefixes and inherited episode history under M1.
+      - Add fixed opponents, side-swapped pairs, W/D/L/truncation accounting, and pair bootstrap.
+    acceptance:
+      - Arena checks exact YAML/opening/model hashes and allows no search/scoring overrides.
+      - All 200 opening pairs run with noise disabled, temperature zero, and matched search budgets.
+      - Synthetic scoring tests independently verify draws, denominator, confidence, and promotion gates.
+      - Any truncation, illegal action, numerical error, or incomplete pair makes promotion ineligible.
+      - Promotion requires score >= 0.55 and 95 percent pair-bootstrap lower bound > 0.50.
+      - Final evaluation declares prior fixture exposure and freezes a fresh reserved suite before M6 tuning; diagnostics cannot be reported as formal acceptance.
+  - id: M6
+    title: Budgeted reproducible experiments and measured improvement
+    status: pending
+    depends_on: [M5]
+    tasks:
+      - Implement make experiment with a declared hypothesis, controlled change, and total time budget.
+      - Run the AlphaZero loop with traceable replay, updates, checkpoints, and fixed evaluation.
+      - Compare against compatible champion and declared random/path/classic baselines.
+      - Analyze policy/value calibration, replay diversity, outcomes, throughput, and actual arena strength.
+    acceptance:
+      - Experiments require finite budgets and unique run directories before work begins.
+      - All retries, interruptions, elapsed time, failures, and selection rules are recorded.
+      - At least one complete baseline and controlled comparison has reproducible artifact lineage.
+      - Improvement claims pass the frozen arena gates rather than teacher or training loss alone.
+      - Lack of improvement or exhausted budget is reported as such without automatic promotion.

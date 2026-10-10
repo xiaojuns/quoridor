@@ -1,20 +1,44 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools==80.9.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "quoridor-alphazero"
 version = "0.1.0"
 description = "Reference AlphaZero training pipeline for Quoridor"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.11"
 dependencies = [
-  "numpy>=2.0",
-  "torch>=2.7,<3",
+  "numpy==2.2.6",
+  "torch==2.7.1+cpu",
+  "PyYAML==6.0.3",
+]
+
+[dependency-groups]
+dev = [
+  "pytest==8.4.2",
+  "hypothesis==6.142.4",
 ]
 
 [project.scripts]
 quoridor-az = "quoridor.cli:main"
+quoridor-project = "quoridor.project_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["quoridor*"]
+
+[tool.uv]
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+default = true

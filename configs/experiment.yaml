@@ -1,0 +1,22 @@
+schema_version: 1
+mode: experiment
+seed: 20261010
+device: cpu
+rules:
+  board_size: 9
+  walls_per_player: 10
+  action_size: 209
+  rules_version: quoridor-v1
+  codec_version: az209-v1
+  value_perspective: current-player-v1
+  repetition_limit: 3
+budget:
+  wall_time_seconds: 600
+  max_game_plies: 256
+output:
+  run_root: runs
+search:
+  simulations: 64
+  c_puct: 1.5
+  root_noise: true
+  temperature: 1.0

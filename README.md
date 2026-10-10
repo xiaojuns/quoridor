@@ -1,5 +1,28 @@
 # Quoridor
 
+## AlphaZero 工程入口（M0）
+
+新一轮 AI 改造的入口是 [AGENTS.md](AGENTS.md)、[progress.md](progress.md)
+和 [tasks.yaml](tasks.yaml)，行为规范见 [docs/spec.md](docs/spec.md)。
+本轮只完成 M0；下文浏览器和旧 Phase 训练流程属于历史实现，尤其重复判负、
+步数上限判负与新规范不同。
+
+Linux x86_64 / Python 3.10（含 pip）、Git、GNU Make 使用独立的 CPU 环境，
+首次安装需要网络与磁盘空间；`make install PYTHON=python3` 可指定 Python 命令：
+
+```bash
+make install
+make check
+make help
+```
+
+依赖由 `training/uv.lock` 固定，配置在 `configs/*.yaml`，新运行目录为 `runs/`。
+`make smoke`、`make arena`、`make experiment` 已预留接口，M0 时明确报
+`NOT IMPLEMENTED` 并返回非零状态；不会启动旧训练脚本。后续分别由 M4、M5、M6
+接通。旧模型与数据保存在 Git 忽略的 `training/runs/` 中，新克隆不包含这些文件。
+
+## 现有浏览器游戏
+
 一个零依赖的本地 Quoridor（步步为营）游戏，支持：
 
 - 本地双人对战
