@@ -82,14 +82,10 @@ def test_legacy_action_numbers_remain_compatible_without_reusing_legacy_outcomes
 
 
 def test_new_rule_modules_play_without_ml_native_or_legacy_rules():
-    # Import package once because its public root exports intentionally stay legacy.
-    # Block new imports and remove old rule modules to detect accidental reuse.
+    # Guard the very first package import too: new APIs must not eagerly load
+    # legacy rules merely because their root names remain available lazily.
     code = """
 import sys
-import quoridor
-for name in ('quoridor.game', 'quoridor.codec'):
-    sys.modules.pop(name, None)
-    delattr(quoridor, name.split('.')[-1])
 class NoLegacyOrML:
     def find_spec(self, fullname, path=None, target=None):
         if fullname.split('.')[0] in {'torch', 'numpy', 'quoridor_native'} or fullname in {

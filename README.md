@@ -1,10 +1,11 @@
 # Quoridor
 
-## AlphaZero 工程入口（M0 / M1）
+## AlphaZero 工程入口（M0～M2）
 
 新一轮 AI 改造的入口是 [AGENTS.md](AGENTS.md)、[progress.md](progress.md)
 和 [tasks.yaml](tasks.yaml)，行为规范见 [docs/spec.md](docs/spec.md)。
-M0 与 M1 已完成，包含独立规则引擎与 episode outcome。下文浏览器和旧 Phase
+M0～M2 已完成，包含独立规则引擎、episode outcome、版本化编码器与纯张量网络。
+编码、变换和模型权重格式见 [docs/model-v1.md](docs/model-v1.md)。下文浏览器和旧 Phase
 训练流程属于历史实现，尤其重复判负、步数上限判负与新规范不同。
 新代码显式导入 `quoridor.engine`、`quoridor.episode`；`quoridor` 根导出仍是旧接口。
 
@@ -15,6 +16,7 @@ Linux x86_64 / Python 3.10（含 pip）、Git、GNU Make 使用独立的 CPU 环
 make install
 make check
 make check-m1
+make check-m2
 make help
 ```
 
@@ -22,6 +24,8 @@ make help
 `make smoke`、`make arena`、`make experiment` 已预留接口，目前明确报
 `NOT IMPLEMENTED` 并返回非零状态；不会启动旧训练脚本。后续分别由 M4、M5、M6
 接通。旧模型与数据保存在 Git 忽略的 `training/runs/` 中，新克隆不包含这些文件。
+新模型架构由 `configs/model.yaml` 配置；输入是明确标注的部分历史观测，搜索必须
+保留完整 episode history。模型权重可以校验保存/加载，完整训练恢复仍待 M4。
 
 ## 现有浏览器游戏
 

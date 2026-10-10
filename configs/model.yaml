@@ -1,0 +1,12 @@
+schema_version: 1
+encoder_version: az-encoder-v1-partial-16
+architecture:
+  model_version: az-resnet-v1
+  input_channels: 16
+  board_size: 9
+  action_size: 209
+  channels: 64
+  blocks: 4
+  policy_channels: 8
+  value_channels: 8
+  value_hidden: 64

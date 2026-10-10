@@ -133,6 +133,12 @@ document the network's partial observation and validate its consequences. It
 must not claim legacy 14/16 planes make the repetition game Markov. The engine
 and search must still have the exact episode history.
 
+M2 resolves this gate with `az-encoder-v1-partial-16`, documented in
+`model-v1.md`: a 16-plane partial observation, with a tested pair of identical
+inputs whose hidden histories yield different future repetition outcomes.
+Exact search adjudication and value labels retain full episode history. This
+representation is not claimed Markov, and its playing-strength cost is unmeasured.
+
 ## Search and Learning Contract
 
 Each edge stores `P`, `N`, `W`, and `Q = W/N`, with `Q` expressed from the parent
@@ -185,5 +191,6 @@ M1 acceptance condition: passing new-version differential tests without skips.
 `require_compatible_artifact()` rejects missing or mismatched rule, codec, and
 value-perspective metadata. A legacy numeric codec version and matching action
 numbers alone cannot establish compatibility. This is an identity gate, not a
-checkpoint/replay loader: M2/M4 must additionally verify encoder, architecture,
-content hashes, lineage, and complete episode history before loading data.
+checkpoint/replay loader. M2's separate model-weight loader verifies encoder,
+architecture and optional expected content hashes; M4 must additionally verify
+run/replay lineage and complete episode history before resuming training.

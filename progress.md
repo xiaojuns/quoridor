@@ -1,8 +1,8 @@
 # Project Progress
 
 Date: 2026-10-10. Workstream: `quoridor-alphazero-v1`.
-Current milestone: M1 completed and verified after the follow-up implementation request.
-M0 remains completed; this round stops after M1, before M2.
+Current milestone: M2 completed and verified after the follow-up implementation request.
+M0/M1 remain completed; this round stops after M2, before M3.
 
 ## M0 Baseline Audit
 
@@ -180,11 +180,66 @@ records elapsed time and `budget_exhausted`. Search/actor/optimizer scheduling
 enforcement remains M3/M4/M6; checkpoint/replay migration remains M2/M4.
 No local historical model, replay, dataset, or GPU ledger was modified.
 
+## M2 Work and Baseline
+
+M2 is the highest-priority incomplete milestone with all dependencies met (M1).
+The current request authorizes this follow-up beyond the prior M1 stop point.
+Starting revision: `02a3bc1`, clean worktree. Before implementation, `make check`
+passed **226 tests in 17.97s**, with no skips; environment/lock/YAML checks passed.
+
+This is engineering implementation and deterministic verification, not a training
+or strength experiment. No historical model is being adapted or trained. The
+first encoder explicitly uses partial history observation, with a deterministic
+same-input/different-history test demonstrating different future draw outcomes.
+The exact-history responsibilities and limits are documented in
+[docs/model-v1.md](docs/model-v1.md). Frozen inputs and acceptance criteria remain
+unchanged.
+
+Implemented `encoder` and stdlib-only `symmetry` for versioned 16-plane features,
+full-history/action/policy transforms and current-player value semantics. Legality
+and distances derive only from the engine; stopped episodes have zero action
+support. `policy_value` is a pure tensor residual network with external `policy`
+masking and JSON-safe `value_diagnostics`. `configs/model.yaml` / `model_config`
+declare and validate the untuned 64-channel, 4-block architecture. Root legacy
+exports now load lazily, preserving their behavior without importing rules when
+the tensor-only model is imported.
+
+`model_checkpoint` validates complete rule/codec/value/encoder/architecture
+metadata, state-dict shapes/dtypes/finite values and optional expected hashes.
+Temporary save/reload tests reproduce inference outputs, retain caller RNG, and
+reject old 14/16-plane assets. It saves model weights only; optimizer/replay/RNG
+training continuation is still M4. No historic checkpoint has been converted.
+
+## M2 Executed Verification
+
+| Command / check | Observed result |
+| --- | --- |
+| Baseline `make check` | Exit 0; 226 passed in 17.97s |
+| Model + YAML focused pytest | Exit 0; 102 passed in 2.66s |
+| Model checkpoint focused pytest | Exit 0; 66 passed in 4.23s |
+| Encoder/symmetry focused after CPU fix | Exit 0; 59 passed in 50.17s; final added deadline groups separately passed 10 cases |
+| Final cumulative `make check` | Exit 0; **471 passed in 74.37s**, no skips (245 M2 + 226 existing) |
+| Lock/environment/config gates | All passed; 22 packages unchanged, offline sync makes no changes |
+| Frozen-input/criteria comparison | 10 prior config/fixture files, all acceptance criteria, lock and legacy network/checkpoint/game byte-identical |
+| `make help`, `git diff --check` | Exit 0 |
+
+Full commands, acceptance mapping, partial-observation evidence and limitations
+are saved in [docs/verification-m2.md](docs/verification-m2.md).
+`make check-m2` reproduces the complete focused M2 suite. The existing M1 import
+test now guards the very first package import; this strengthens isolation after
+lazy exports and does not change a frozen fixture or reduce its assertions.
+Review also led to explicit CPU tensor factories and clear sparse-input errors.
+
+No self-play/training job, GPU/native workload, new arena, strength experiment,
+or historical asset modification occurred. Synthetic gradients and checkpoint
+roundtrips are unit tests. Actual gameplay calibration and the strength cost of
+partial history observation remain unmeasured. Any later experiment must first
+register its hypothesis, YAML configuration and finite time budget.
+
 ## Next Task
 
-M1 is complete with no known blocking issue; stop here. M2 is the next eligible
-task: separate versioned encoding from the tensor-only network, resolve
-repetition-history observability, test perspective transforms and value signs,
-and reject incompatible checkpoints. M2-M6 remain pending. The reserved
-`make smoke`, `make arena`, and `make experiment` remain explicitly unimplemented
-until M4/M5/M6; no successful training pipeline or arena is claimed.
+M2 is complete with no known blocking issue; stop here. M3 is the next eligible
+task: correct bounded PUCT using new-rule episodes, the versioned encoder and
+tensor evaluator, exact history-aware outcomes/cache identity, sign backup tests
+and propagated deadlines. M3-M6 remain pending. `make smoke`, `make arena`, and
+`make experiment` remain explicitly unimplemented until M4/M5/M6.

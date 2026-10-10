@@ -190,3 +190,22 @@ checkpoint and replay loading remains M2/M4 work.
 `make check-m1` runs new rule/outcome/property/boundary tests; `make check` runs
 them alongside M0 and retained legacy CPU regressions. Existing conformance
 fixtures and frozen arena/opening bytes are unchanged.
+
+## M2 Implementation Boundary
+
+The detailed layout, representation decision and public APIs are specified in
+`model-v1.md`. New modules separate pure metadata (`feature_spec`), engine-derived
+features (`encoder`), reversible state/history/policy transforms (`symmetry`),
+the tensor-only network (`policy_value`), external masking (`policy`), value
+diagnostics (`value_diagnostics`), YAML architecture loading (`model_config`),
+and validated model-weight artifacts (`model_checkpoint`). Old network/trainer
+imports retain their legacy behavior. Root legacy exports load lazily so that
+tensor-only imports do not eagerly load rules.
+
+Partial history observation is explicit and demonstrated by a deterministic
+same-tensor/different-history repetition test. Search and final labels remain
+history-exact; evaluating this representation's strength is future work.
+`make check-m2` covers this layer, and `make check` includes it cumulatively.
+Model weights can be saved and reloaded with exact identity checks; a complete
+training-resume implementation still belongs to M4. No execution stub becomes
+available as a result of M2, and no strength experiment is part of this task.

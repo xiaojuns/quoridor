@@ -16,6 +16,14 @@ the cumulative check includes these tests. The full browser/native/historical
 driver suites are separate checks and must not be implied by M0/M1 results.
 No new network training or arena games are required for M0/M1 acceptance.
 
+M2 adds `make check-m2` and participates in the cumulative check. It tests
+the layout in `model-v1.md`, current-player transforms including full history,
+explicit partial-observation collisions, synthetic forward/backward values,
+legal policy support, independent diagnostic formulas, and real model-weight
+save/reload plus metadata/hash rejection. These engineering tests do not measure
+value calibration on real gameplay or playing strength. No training experiment
+is required for M2 acceptance.
+
 Later acceptance must cover:
 
 | Milestone | Evidence required |

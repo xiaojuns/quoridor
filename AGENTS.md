@@ -1,8 +1,9 @@
 # Project Entry
 
 Read `progress.md`, `tasks.yaml`, then `docs/spec.md`, `docs/design.md`, and
-`docs/eval.md`. M0 and M1 are complete; verification is recorded in
-`docs/verification-m1.md`. Stop after M1; M2-M6 require a later task.
+`docs/eval.md`. M0-M2 are complete. Read `docs/model-v1.md` and
+`docs/verification-m2.md` for the new encoder/model APIs and actual evidence.
+Stop after M2; M3-M6 require a later task.
 Existing Phase 4 code and ignored local assets are
 legacy evidence, not proof of compliance with the new contract.
 
@@ -15,6 +16,9 @@ legacy evidence, not proof of compliance with the new contract.
   rules. Treat values as the current player's perspective and flip on backup.
 - New rules use `quoridor.engine` / `quoridor.episode`. Root package exports,
   `game` / `codec`, browser and native are legacy; no automatic backend fallback.
+- New tensor models use `policy_value`, with external `encoder` and `policy`.
+  The input is explicitly partially observed; exact search outcomes/cache keys
+  must retain full episode history. Legacy 16-plane weights are incompatible.
 - Every training job needs a finite wall-clock budget and a unique traceable
   `runs/` directory. Preserve legacy `training/runs/` and local checkpoints.
 - Arena settings and opening assets are frozen by hashes. Change the protocol

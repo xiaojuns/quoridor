@@ -1,7 +1,7 @@
 schema_version: 1
 workstream: quoridor-alphazero-v1
-active_milestone: M1
-stop_after: M1
+active_milestone: M2
+stop_after: M2
 milestones:
   - id: M0
     title: Executable engineering skeleton
@@ -57,7 +57,7 @@ milestones:
       supported_new_rules_backends: [python]
   - id: M2
     title: Versioned encoder and policy/value network
-    status: pending
+    status: completed
     depends_on: [M1]
     tasks:
       - Separate engine-derived encoding and legality masking from the tensor-only network.
@@ -70,6 +70,13 @@ milestones:
       - Encoder derives rules through the engine; it contains no independent path or legality implementation.
       - Transformation tests preserve legal policy support and invert actions/history exactly.
       - Incompatible legacy encoder or rule metadata is rejected by checkpoint load.
+    verification:
+      report: docs/verification-m2.md
+      baseline_revision: 02a3bc196603a6f6961e8b9a37325a0176278396
+      command: make check
+      result: 471 passed in 74.37s; no skips
+      encoder_version: az-encoder-v1-partial-16
+      model_version: az-resnet-v1
   - id: M3
     title: Correct and bounded PUCT MCTS
     status: pending
