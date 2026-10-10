@@ -6,14 +6,15 @@ this document defines what later milestones must establish.
 
 ## Engineering Acceptance
 
-`make check` is the M0 CPU validation gate. It validates the new YAML contracts,
+`make check` is the cumulative CPU validation gate. It validates the new YAML contracts,
 the frozen arena configuration/opening hashes, run-directory and JSONL helpers,
 deadline behavior, and explicit failure of unfinished execution entry points.
 pytest covers boundary/error behavior; Hypothesis covers input variation and
 invariants. Selected legacy CPU reference tests protect retained functionality.
-The full browser/native/historical driver suites are separate checks and must
-not be implied by the M0 result. No new network training or arena games are
-required for M0 acceptance.
+`make check-m1` isolates the new rules, episode outcomes and compatibility tests;
+the cumulative check includes these tests. The full browser/native/historical
+driver suites are separate checks and must not be implied by M0/M1 results.
+No new network training or arena games are required for M0/M1 acceptance.
 
 Later acceptance must cover:
 
@@ -106,7 +107,7 @@ samples, optimizer steps, throughput, and arena identity alongside loss metrics.
 Reproduce the selected result from an independently identified run when the
 budget permits. Numerical failures, reruns, interruptions, and exhausted budgets
 remain visible in the record. A failed or unfinished experiment is a valid
-reported outcome, not successful training. This round ends at M0 and runs none
+reported outcome, not successful training. The M0/M1 engineering tasks run none
 of these experiments.
 
 ## Historical Evidence and Current Claims

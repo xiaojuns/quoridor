@@ -1,7 +1,7 @@
 schema_version: 1
 workstream: quoridor-alphazero-v1
-active_milestone: M0
-stop_after: M0
+active_milestone: M1
+stop_after: M1
 milestones:
   - id: M0
     title: Executable engineering skeleton
@@ -36,7 +36,7 @@ milestones:
       - tests/m0
   - id: M1
     title: Rule engine, episode outcomes, and reversible action codec
-    status: pending
+    status: completed
     depends_on: [M0]
     tasks:
       - Establish immutable board-only engine interfaces and exact episode history.
@@ -49,6 +49,12 @@ milestones:
       - pytest tactical fixtures and Hypothesis reachable-state invariants pass.
       - Goal, repetition, ply limit, deadline, interruption, and failure have tested precedence and labels.
       - Any retained native backend passes new-version differential tests without hidden skips.
+    verification:
+      report: docs/verification-m1.md
+      baseline_revision: 5494513f47c810f499e9691e71fdd64ee7507681
+      command: make check
+      result: 226 passed in 18.15s; no skips
+      supported_new_rules_backends: [python]
   - id: M2
     title: Versioned encoder and policy/value network
     status: pending

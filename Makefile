@@ -11,15 +11,16 @@ export PYTHONDONTWRITEBYTECODE := 1
 export UV_CACHE_DIR := $(CURDIR)/.tools/uv-cache
 export UV_PYTHON_DOWNLOADS := never
 
-.PHONY: help install check smoke arena experiment environment
+.PHONY: help install check check-m1 smoke arena experiment environment
 
 help:
 	@printf '%s\n' \
 	  'make install     Install locked Linux x86_64 Python 3.10 CPU environment' \
-	  'make check       Validate environment, lock, YAML configs, and M0/reference tests' \
-	  'make smoke       Reserved smoke interface; M0 reports NOT_IMPLEMENTED' \
-	  'make arena       Reserved frozen-arena interface; M0 reports NOT_IMPLEMENTED' \
-	  'make experiment  Reserved budgeted-training interface; M0 reports NOT_IMPLEMENTED' \
+	  'make check       Validate environment, lock, YAML configs, and M0/M1/reference tests' \
+	  'make check-m1    Run new rules, episode, and compatibility tests' \
+	  'make smoke       NOT_IMPLEMENTED; real smoke is scheduled for M4' \
+	  'make arena       NOT_IMPLEMENTED; frozen arena is scheduled for M5' \
+	  'make experiment  NOT_IMPLEMENTED; budgeted training is scheduled for M6' \
 	  '                 Set CONFIG=path/to/config.yaml to select a config'
 
 install:
@@ -37,7 +38,10 @@ check: environment
 	@$(ENV_PYTHON) -m quoridor.project_cli check-config --config configs/smoke.yaml
 	@$(ENV_PYTHON) -m quoridor.project_cli check-config --config configs/arena.yaml
 	@$(ENV_PYTHON) -m quoridor.project_cli check-config --config configs/experiment.yaml
-	@$(ENV_PYTHON) -m pytest -q tests/m0 training/tests/test_codec_game.py training/tests/test_mcts.py training/tests/test_network.py training/tests/test_numerics.py
+	@$(ENV_PYTHON) -m pytest -q tests/m0 tests/m1 training/tests/test_codec_game.py training/tests/test_mcts.py training/tests/test_network.py training/tests/test_numerics.py
+
+check-m1: environment
+	@$(ENV_PYTHON) -m pytest -q tests/m1
 
 smoke: environment
 	@$(ENV_PYTHON) -m quoridor.project_cli smoke --config "$(or $(CONFIG),configs/smoke.yaml)"

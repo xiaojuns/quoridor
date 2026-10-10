@@ -149,4 +149,44 @@ and measured strength improvement. Existing code is reused only behind each
 milestone's tests and explicit compatibility boundary.
 
 No accelerator run, fresh self-play, replay migration, architecture tuning,
-promotion, or strength experiment is performed as part of M0.
+promotion, or strength experiment is performed as part of M0 or M1.
+
+## M1 Implementation Boundary
+
+`training/quoridor/engine.py` is the new Python reference. `BoardState` contains
+only pawn positions, immutable wall sets, inventories, and `to_play`.
+Construction validates coordinates, inventory conservation, wall structure,
+both goal paths, and goal/side consistency. `initial_state`, `legal_actions`,
+`legal_action_mask`, `apply_action`, and `goal_winner` are public entry points;
+`position_key` is a stable versioned string containing all board fields.
+Action encoding retains the 0/81/145 offsets and 209 total IDs.
+
+`training/quoridor/episode.py` owns ordered full-position history, outcomes,
+ply counts and runtime-stop handling. The board can continue through a repeated
+position; the episode adjudicates the third occurrence as a draw. Outcome labels
+are available only for completed goal or repetition results. `start_episode`
+counts the starting position once; `advance_episode` appends committed actions.
+`Episode` construction validates every canonical board key, each legal adjacent
+transition, and the absence of earlier goal/repetition/ply-limit endings.
+`adjudication_key` includes the full history and ply cap, preventing board-only
+cache aliasing. `value_targets(recorded_players)` returns all labels together
+or `None` for an unfinished, truncated, or failed episode.
+
+`enforce_deadline`, `interrupt_episode`, and `fail_episode` give callers explicit
+stop boundaries. If a goal finishes during an operation that overruns its budget,
+its episode result remains a goal while `RunSession` records observed elapsed
+time and `budget_exhausted` run status. A tested synthetic integration exercises
+this distinction; real actor/search/trainer scheduling remains M3/M4/M6 work.
+
+New imports must use these modules explicitly. Existing `game`, `codec`, root
+package exports, classic/browser adapters, and native bindings remain legacy.
+This separation avoids relabeling historical data or letting old native code
+silently adjudicate new games. `rules_contract.load_engine` exposes only Python
+and rejects every unsupported backend before import. The native conformance
+condition in `tasks.yaml` remains mandatory before enabling native support.
+`require_compatible_artifact` checks rules/codec/value identity only; actual
+checkpoint and replay loading remains M2/M4 work.
+
+`make check-m1` runs new rule/outcome/property/boundary tests; `make check` runs
+them alongside M0 and retained legacy CPU regressions. Existing conformance
+fixtures and frozen arena/opening bytes are unchanged.

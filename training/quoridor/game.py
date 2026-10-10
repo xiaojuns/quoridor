@@ -1,8 +1,10 @@
-"""Pure-Python reference rules for two-player Quoridor.
+"""Legacy pure-Python rules (repetition and ply-cap losses).
 
 The implementation deliberately favors clarity and cross-language conformance
 over search speed.  Native search code can replace it later while continuing to
-use the same immutable state and 209-action contract.
+use the same immutable state and 209-action contract. The new quoridor-v1
+board/episode contract lives in ``engine`` / ``episode``; do not use this module
+to adjudicate new-version replay.
 """
 
 from __future__ import annotations

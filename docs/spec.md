@@ -1,9 +1,9 @@
 # Two-player Quoridor AlphaZero Contract
 
-Status: M0 contract, 2026-10-10. This document specifies the new M0-M6
+Status: contract established in M0, 2026-10-10. This document specifies the new M0-M6
 workstream. It does not certify that the existing browser, Python, or C++
 implementations already satisfy these requirements. M0 delivers engineering
-entry points and contracts; game migration begins in M1.
+entry points and contracts; M1 implements separate Python board/episode APIs.
 
 ## Scope and Versions
 
@@ -168,4 +168,22 @@ These helpers are infrastructure; they do not yet enforce a training scheduler.
 `make smoke`, `make arena`, and `make experiment` are reserved interfaces and
 must fail explicitly as unimplemented with nonzero status. Configuration
 validation does not imply that training or evaluation ran. M1-M6 acceptance is
-tracked in `tasks.yaml`; this round stops after M0.
+tracked in `tasks.yaml`. The M0 round stopped at infrastructure; the authorized
+M1 follow-up implements rules only and leaves these execution entries unavailable.
+
+## M1 Compatibility Boundary
+
+New rule code imports `quoridor.engine` and `quoridor.episode` explicitly.
+`quoridor.game`, `quoridor.codec`, and root-package exports remain legacy APIs;
+the old browser and C++ backend keep their historical outcome semantics.
+`rules_contract.load_engine()` exposes only the new Python engine. Requests for
+native, browser, automatic selection, or a different rules version fail before
+backend import; there is no fallback to a legacy adjudicator. No native backend
+is enabled for `quoridor-v1`. Enabling one later still requires the unchanged
+M1 acceptance condition: passing new-version differential tests without skips.
+
+`require_compatible_artifact()` rejects missing or mismatched rule, codec, and
+value-perspective metadata. A legacy numeric codec version and matching action
+numbers alone cannot establish compatibility. This is an identity gate, not a
+checkpoint/replay loader: M2/M4 must additionally verify encoder, architecture,
+content hashes, lineage, and complete episode history before loading data.

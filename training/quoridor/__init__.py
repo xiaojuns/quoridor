@@ -1,4 +1,8 @@
-"""Reference Quoridor rules and AlphaZero codecs."""
+"""Legacy Phase 0-4 exports (repetition/ply-cap losses).
+
+The quoridor-v1 player uses explicit ``quoridor.engine`` and
+``quoridor.episode`` imports; these historical exports are not migrated aliases.
+"""
 
 from .codec import (
     ACTION_SPACE_SIZE,

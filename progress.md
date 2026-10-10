@@ -1,10 +1,10 @@
 # Project Progress
 
 Date: 2026-10-10. Workstream: `quoridor-alphazero-v1`.
-Current milestone: M0 completed and verified. This round stops after M0.
-Next implementation milestone: M1; do not begin it in this round.
+Current milestone: M1 completed and verified after the follow-up implementation request.
+M0 remains completed; this round stops after M1, before M2.
 
-## Baseline Audit
+## M0 Baseline Audit
 
 The starting worktree was clean at commit `8a3582f` (2026-09-22,
 "Validate F21 value scaling against classic-hard"). The repository contains a
@@ -24,7 +24,7 @@ the new goal/repetition-draw/runtime-truncation contract. M1-M4 must migrate thi
 behavior and isolate old replay/checkpoints. Existing features do not expose
 complete repetition history to the network; M2 has an explicit decision gate.
 
-## Local Assets and Historical Reports
+## M0 Local Assets and Historical Reports
 
 Read-only inventory found `training/runs/` contains 12,648,686,985 bytes
 (approximately 11.78 GiB), 14,766 files: 90 `.pt` models/checkpoints, 330 `.npy`
@@ -93,7 +93,7 @@ tests cover source/config/lock provenance, unique directories, JSONL, budget
 expiration, interruptions, and explicit failure statuses. These helpers are not
 yet connected to actors, optimizers, or real evaluation.
 
-## Executed Verification
+## M0 Executed Verification
 
 The following commands were actually run on Linux x86_64, Python 3.10.12:
 
@@ -124,11 +124,67 @@ passing them does not certify the new outcome contract.
 Synthetic forward/backward passes and optimizer updates inside reference unit
 tests are engineering validation, not a training run or strength experiment.
 
+## M1 Work and Baseline
+
+Selected M1 as the highest-priority unfinished milestone: its sole dependency M0
+is complete; M2-M6 still depend on unfinished work. This follow-up request
+supersedes the previous round's M0 stopping point. The starting revision is
+`5494513f47c810f499e9691e71fdd64ee7507681`, with a clean worktree.
+
+Before implementation, `make check` was rerun: exit 0, **82 passed in 10.03s**.
+All 22 locked packages matched; offline sync reported `Would make no changes`;
+the three YAML configs and frozen arena/opening hashes passed validation.
+
+Implemented `quoridor.engine`: immutable validated board-only state, 209-action
+codec, all legal actions and masks, wall/path/jump rules, immutable transitions,
+and canonical versioned board keys. `quoridor.episode` owns complete ordered
+history, validates its keys and transitions, and distinguishes goal wins,
+threefold draws, unlabelled truncations, and explicit failures. Terminal values
+and complete-episode targets use each recorded player's perspective. Search
+cache identity includes history, not just the current board.
+
+`rules_contract` rejects legacy/unversioned artifact metadata and unsupported
+new-rule backends. Native and browser remain historical implementations;
+only Python is enabled for `quoridor-v1`. No native conformance is claimed or
+skipped as a substitute for passing it. The unchanged native acceptance
+condition applies before any new-version native backend can be enabled.
+
+Independent review found three initial episode-constructor defects: premature
+ply-limit outcomes, garbage history keys, and continuing after an already
+completed draw. All were fixed with strict validation and regression tests;
+five reviewer probes now reject correctly. Evidence and copyable reproduction
+commands are saved in [docs/verification-m1.md](docs/verification-m1.md).
+
+## M1 Executed Verification
+
+| Command / check | Observed result |
+| --- | --- |
+| Baseline `make check` | Exit 0; 82 passed in 10.03s |
+| Engine focused pytest (command in report) | Exit 0; 66 passed in 7.74s |
+| Episode focused pytest (final) | Exit 0; 45 passed in 0.80s |
+| Final `make check` | Exit 0; **226 passed in 18.15s**, no skips: 144 M1 + 82 existing tests |
+| Lock/environment/YAML/digests within `make check` | All passed; 22 packages match, offline sync reports no changes |
+| Comparison against starting commit | 10 config/fixture files byte-identical; all M0-M6 acceptance criteria and lock unchanged |
+| Independent review regressions | All 5 invalid-history/outcome probes rejected |
+| `git diff --check` | Exit 0 |
+
+`make check-m1` is the focused M1 reproduction entry. The full gate includes
+tactical cases, actual Hypothesis reachable-state properties, full action-mask
+checks, real legal 256-ply boundary traces, and legacy boundary tests. No test
+was skipped or weakened to obtain completion, and no frozen input was changed.
+
+No training/strength experiment was required or run. Synthetic unit tests are
+not self-play jobs or strength evidence. A fake-clock integration verifies a
+goal at an overrun keeps its game label while temporary RunSession JSONL/summary
+records elapsed time and `budget_exhausted`. Search/actor/optimizer scheduling
+enforcement remains M3/M4/M6; checkpoint/replay migration remains M2/M4.
+No local historical model, replay, dataset, or GPU ledger was modified.
+
 ## Next Task
 
-M0 acceptance is complete; work stops here. The next planned implementation task,
-requiring a later request, is M1: board-only engine and episode-history boundary, proper outcome
-types, goal/threefold/truncation tests, hardened rule invariants, and explicit
-legacy compatibility. M2-M6 remain pending. The reserved `make smoke`,
-`make arena`, and `make experiment` currently fail explicitly; no successful
-end-to-end training or arena interface is claimed.
+M1 is complete with no known blocking issue; stop here. M2 is the next eligible
+task: separate versioned encoding from the tensor-only network, resolve
+repetition-history observability, test perspective transforms and value signs,
+and reject incompatible checkpoints. M2-M6 remain pending. The reserved
+`make smoke`, `make arena`, and `make experiment` remain explicitly unimplemented
+until M4/M5/M6; no successful training pipeline or arena is claimed.

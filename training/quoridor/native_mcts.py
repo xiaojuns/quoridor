@@ -1,4 +1,8 @@
-"""Python adapter for the optional C++17 MCTS extension."""
+"""Legacy Python adapter for the optional C++17 MCTS extension.
+
+This backend still uses repetition/ply-cap losses; it is not supported by
+quoridor-v1's ``rules_contract.load_engine``.
+"""
 
 from __future__ import annotations
 
