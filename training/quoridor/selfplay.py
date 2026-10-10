@@ -482,3 +482,260 @@ __all__ = [
     "play_self_games_batched",
     "play_self_games_scheduled",
 ]
+
+
+# ---------------------------------------------------------------------------
+# quoridor-v1 M4 actor
+# ---------------------------------------------------------------------------
+# The legacy actor above intentionally remains available for historical phase
+# scripts.  These types use immutable ``Episode`` records and the new puct-v1
+# contract; they are kept in this module so callers have one self-play entry
+# point while the two rule versions cannot be mixed accidentally.
+
+from dataclasses import dataclass as _dataclass
+import math as _math
+
+from .episode import Episode as _Episode
+from .episode import advance_episode as _advance_episode
+from .episode import enforce_deadline as _enforce_deadline
+from .episode import fail_episode as _fail_episode
+from .episode import interrupt_episode as _interrupt_episode
+from .engine import ACTION_SPACE_SIZE as _NEW_ACTION_SIZE
+from .puct import Evaluation as _Evaluation
+from .puct import SearchConfig as _SearchConfig
+from .puct import SearchError as _SearchError
+from .puct import run_search as _run_search
+from .project_runtime import BudgetExpired as _BudgetExpired
+from .project_runtime import Deadline as _Deadline
+from .replay import ReplayGame as _ReplayGame
+from .replay import ReplayPosition as _ReplayPosition
+
+
+@_dataclass(frozen=True, slots=True)
+class NewSelfPlayConfig:
+    """Bounded self-play settings for the new rules/model contract."""
+
+    search: _SearchConfig
+    max_game_plies: int = 256
+    seed: int = 0
+    model_hash: str | None = None
+    config_hash: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.search, _SearchConfig) or self.search.mode != "selfplay":
+            raise ValueError("M4 self-play requires SearchConfig(mode='selfplay')")
+        if type(self.max_game_plies) is not int or self.max_game_plies <= 0:
+            raise ValueError("max_game_plies must be a positive integer")
+        if type(self.seed) is not int or self.seed < 0:
+            raise ValueError("self-play seed must be a non-negative integer")
+        for label, value in (("model_hash", self.model_hash), ("config_hash", self.config_hash)):
+            if value is not None and (not isinstance(value, str) or not value):
+                raise ValueError(f"{label} must be a non-empty string")
+
+
+@_dataclass(frozen=True, slots=True)
+class NewSelfPlayPosition:
+    """One committed root and the visit target used to select its action."""
+
+    episode: _Episode
+    action: int
+    visits: tuple[int, ...]
+    policy: tuple[float, ...]
+    root_value: float
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.episode, _Episode) or self.episode.finished:
+            raise ValueError("self-play position must contain a live Episode")
+        if type(self.action) is not int or not 0 <= self.action < _NEW_ACTION_SIZE:
+            raise ValueError("self-play action is outside the action space")
+        from . import engine as _new_engine
+
+        if self.action not in _new_engine.legal_actions(self.episode.state):
+            raise ValueError("self-play action must be legal at its root")
+        visits = tuple(self.visits)
+        if len(visits) != _NEW_ACTION_SIZE or any(type(item) is not int or item < 0 for item in visits):
+            raise ValueError("self-play visits must contain 209 non-negative counts")
+        if visits[self.action] <= 0:
+            raise ValueError("selected self-play action must have positive visits")
+        policy = tuple(float(item) for item in self.policy)
+        if len(policy) != _NEW_ACTION_SIZE or any(not _math.isfinite(item) or item < 0 for item in policy):
+            raise ValueError("self-play policy must contain 209 finite non-negative values")
+        if _math.fsum(policy) <= 0 or policy[self.action] <= 0:
+            raise ValueError("selected self-play action must have positive policy mass")
+        legal = set(_new_engine.legal_actions(self.episode.state))
+        if any(probability > 0 and action not in legal for action, probability in enumerate(policy)):
+            raise ValueError("self-play policy must have support only on legal actions")
+        value = float(self.root_value)
+        if not _math.isfinite(value) or not -1 <= value <= 1:
+            raise ValueError("self-play root value must be finite and in [-1,1]")
+        object.__setattr__(self, "visits", visits)
+        object.__setattr__(self, "policy", tuple(item / _math.fsum(policy) for item in policy))
+        object.__setattr__(self, "root_value", value)
+
+    @property
+    def to_play(self) -> int:
+        return self.episode.state.to_play
+
+    def replay_position(self) -> _ReplayPosition:
+        return _ReplayPosition(
+            episode=self.episode,
+            action=self.action,
+            policy=self.policy,
+            visits=self.visits,
+            root_value=self.root_value,
+        )
+
+
+@_dataclass(frozen=True, slots=True)
+class NewSelfPlayGame:
+    """Truthful actor result; only ``completed`` games enter baseline replay."""
+
+    episode: _Episode
+    positions: tuple[NewSelfPlayPosition, ...]
+    status: str
+    reason: str
+    seed: int
+    model_hash: str | None = None
+    config_hash: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.episode, _Episode):
+            raise TypeError("self-play result requires an Episode")
+        if self.status not in {"completed", "truncated", "failed"}:
+            raise ValueError("invalid self-play result status")
+        if not isinstance(self.reason, str) or not self.reason:
+            raise ValueError("self-play result reason is required")
+        if type(self.seed) is not int or self.seed < 0:
+            raise ValueError("self-play result seed must be non-negative")
+        for label, value in (("model_hash", self.model_hash), ("config_hash", self.config_hash)):
+            if value is not None and (not isinstance(value, str) or not value):
+                raise ValueError(f"{label} must be a non-empty string")
+        positions = tuple(self.positions)
+        if any(not isinstance(item, NewSelfPlayPosition) for item in positions):
+            raise TypeError("self-play positions have the wrong type")
+        outcome = self.episode.outcome
+        if self.status == "completed" and (outcome is None or not outcome.terminated):
+            raise ValueError("completed self-play result must have a terminal outcome")
+        if self.status == "truncated" and (outcome is None or not outcome.truncated):
+            raise ValueError("truncated self-play result must have a truncated outcome")
+        if self.status == "failed" and (outcome is None or outcome.status != "failed"):
+            raise ValueError("failed self-play result must have a failed outcome")
+        object.__setattr__(self, "positions", positions)
+
+    @property
+    def replay_eligible(self) -> bool:
+        return self.status == "completed" and self.episode.outcome is not None and self.episode.outcome.replay_eligible
+
+    def replay_game(self) -> _ReplayGame:
+        return _ReplayGame(
+            episode=self.episode,
+            positions=tuple(position.replay_position() for position in self.positions),
+            seed=self.seed,
+            model_hash=self.model_hash,
+            config_hash=self.config_hash,
+        )
+
+
+def play_new_selfplay_episode(
+    model,
+    config: NewSelfPlayConfig,
+    *,
+    deadline: _Deadline,
+    initial_episode: _Episode | None = None,
+    evaluator=None,
+) -> NewSelfPlayGame:
+    """Run one bounded v1 self-play game using a shared deadline.
+
+    A fresh :class:`NeuralEvaluator` is created for each call when no explicit
+    evaluator is supplied.  Every selected move must come from a completed
+    puct search; partial visits, deadline exhaustion and all actor errors end
+    the game without inventing a replay label.
+    """
+
+    if not isinstance(config, NewSelfPlayConfig):
+        raise TypeError("config must be NewSelfPlayConfig")
+    if not isinstance(deadline, _Deadline):
+        raise TypeError("self-play requires a shared project Deadline")
+    if initial_episode is None:
+        from .episode import start_episode
+
+        episode = start_episode(max_game_plies=config.max_game_plies)
+    elif isinstance(initial_episode, _Episode):
+        episode = initial_episode
+        if episode.finished:
+            raise ValueError("self-play initial episode must be live")
+    else:
+        raise TypeError("initial_episode must be a quoridor-v1 Episode")
+    if episode.max_game_plies != config.max_game_plies:
+        raise ValueError("initial episode and self-play max_game_plies differ")
+    if evaluator is None:
+        from .search_evaluator import NeuralEvaluator
+
+        evaluator = NeuralEvaluator(model)
+    if not callable(evaluator):
+        raise TypeError("self-play evaluator must be callable")
+    positions: list[NewSelfPlayPosition] = []
+    move_seed = config.seed
+    while not episode.finished:
+        try:
+            deadline.check()
+            search_config = _SearchConfig(
+                simulations=config.search.simulations,
+                c_puct=config.search.c_puct,
+                mode="selfplay",
+                root_noise=config.search.root_noise,
+                temperature=config.search.temperature,
+                seed=move_seed,
+                dirichlet_alpha=config.search.dirichlet_alpha,
+                dirichlet_fraction=config.search.dirichlet_fraction,
+            )
+            result = _run_search(episode, evaluator, search_config, deadline=deadline)
+        except _BudgetExpired:
+            stopped = _enforce_deadline(episode, deadline)
+            if not stopped.finished:
+                stopped = _interrupt_episode(episode, detail="self-play deadline exhausted")
+            return NewSelfPlayGame(stopped, tuple(positions), "truncated", "time_budget", config.seed, config.model_hash, config.config_hash)
+        except (_SearchError, ValueError, TypeError, RuntimeError) as error:
+            failed = _fail_episode(episode, "numerical_error", detail=str(error) or error.__class__.__name__)
+            return NewSelfPlayGame(failed, tuple(positions), "failed", "numerical_error", config.seed, config.model_hash, config.config_hash)
+        if result.status != "completed" or result.action is None:
+            reason = "time_budget" if result.status == "budget_exhausted" else "search_incomplete"
+            stopped = _enforce_deadline(episode, deadline) if reason == "time_budget" else _interrupt_episode(episode, detail=f"search status={result.status}")
+            return NewSelfPlayGame(stopped, tuple(positions), "truncated", reason, config.seed, config.model_hash, config.config_hash)
+        action = result.action
+        root_legal = result.nodes[0].legal_actions if result.nodes else ()
+        if action not in root_legal:
+            failed = _fail_episode(episode, "illegal_action", detail="search selected an illegal action")
+            return NewSelfPlayGame(failed, tuple(positions), "failed", "illegal_action", config.seed, config.model_hash, config.config_hash)
+        try:
+            position = NewSelfPlayPosition(episode, action, result.visits, result.policy, result.root_value if result.root_value is not None else 0.0)
+            next_episode = _advance_episode(episode, action, deadline=deadline)
+        except (ValueError, TypeError, RuntimeError) as error:
+            failed = _fail_episode(episode, "illegal_action", detail=str(error) or error.__class__.__name__)
+            return NewSelfPlayGame(failed, tuple(positions), "failed", "illegal_action", config.seed, config.model_hash, config.config_hash)
+        positions.append(position)
+        episode = next_episode
+        move_seed += 1
+    outcome = episode.outcome
+    if outcome is not None and outcome.status == "failed":
+        return NewSelfPlayGame(episode, tuple(positions), "failed", outcome.reason, config.seed, config.model_hash, config.config_hash)
+    if outcome is None or not outcome.terminated:
+        reason = outcome.reason if outcome is not None and outcome.truncated else "ply_limit"
+        return NewSelfPlayGame(episode, tuple(positions), "truncated", reason, config.seed, config.model_hash, config.config_hash)
+    return NewSelfPlayGame(episode, tuple(positions), "completed", outcome.reason, config.seed, config.model_hash, config.config_hash)
+
+
+# Short aliases used by the M4 trainer/CLI integration.
+play_selfplay_episode = play_new_selfplay_episode
+run_selfplay_episode = play_new_selfplay_episode
+play_selfplay = play_new_selfplay_episode
+SelfPlayV1Config = NewSelfPlayConfig
+SelfPlayV1Position = NewSelfPlayPosition
+SelfPlayV1Game = NewSelfPlayGame
+
+__all__ += [
+    "NewSelfPlayConfig", "NewSelfPlayPosition", "NewSelfPlayGame",
+    "SelfPlayV1Config", "SelfPlayV1Position", "SelfPlayV1Game",
+    "play_new_selfplay_episode", "play_selfplay_episode",
+    "run_selfplay_episode", "play_selfplay",
+]

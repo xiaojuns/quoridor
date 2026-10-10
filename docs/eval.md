@@ -24,6 +24,16 @@ save/reload plus metadata/hash rejection. These engineering tests do not measure
 value calibration on real gameplay or playing strength. No training experiment
 is required for M2 acceptance.
 
+M3 adds `make check-m3` for the versioned contract in `search-v1.md`. Independent
+real-rule tactical oracles verify both players' immediate wins and odd/even
+value backup. Tests check complete legal expansion, raw visit targets, exact
+history versus local path cycles, goal/draw/truncation distinctions, seeded
+selfplay versus deterministic evaluation, and mandatory cooperative deadlines.
+The neural adapter is tested with both controlled outputs and the actual M2
+model. Temporary JSONL run integration preserves partial statistics and reports
+budget exhaustion. These are correctness tests, not arena or strength results;
+all three execution entry points still fail explicitly as unimplemented.
+
 Later acceptance must cover:
 
 | Milestone | Evidence required |
@@ -117,6 +127,14 @@ budget permits. Numerical failures, reruns, interruptions, and exhausted budgets
 remain visible in the record. A failed or unfinished experiment is a valid
 reported outcome, not successful training. The M0/M1 engineering tasks run none
 of these experiments.
+
+M4's engineering gate is `make check-m4` plus an actual `make smoke`. The smoke
+must report one complete new-rule game, at least one admitted replay position,
+one finite optimizer update, and a successful training-checkpoint reload with
+matching lineage. Its tactical fixture and tiny budget are recorded as an
+engineering workload; no strength or convergence claim follows. Truncated or
+failed games remain counted and excluded. M5's arena is the first formal
+strength gate.
 
 ## Historical Evidence and Current Claims
 

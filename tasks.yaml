@@ -1,7 +1,7 @@
 schema_version: 1
 workstream: quoridor-alphazero-v1
-active_milestone: M2
-stop_after: M2
+active_milestone: M4
+stop_after: M4
 milestones:
   - id: M0
     title: Executable engineering skeleton
@@ -79,7 +79,7 @@ milestones:
       model_version: az-resnet-v1
   - id: M3
     title: Correct and bounded PUCT MCTS
-    status: pending
+    status: completed
     depends_on: [M1, M2]
     tasks:
       - Reuse and validate legal expansion, normalized priors, visits, and parent-view edge values.
@@ -91,9 +91,19 @@ milestones:
       - Visits sum and policy normalization follow a tested versioned convention.
       - Same board with different history cannot reuse an incorrect terminal decision.
       - Deadline exhaustion is explicit and no search-local cycle invents a game result.
+    verification:
+      report: docs/verification-m3.md
+      results: docs/verification-m3-results.jsonl
+      baseline_revision: 1d45df03b0952ad0e1da49eda6832ae7c9d4bc5b
+      command: make check
+      result: 586 passed in 85.70s; no skips
+      focused_command: make check-m3
+      focused_result: 115 passed in 11.95s; no skips
+      search_version: puct-v1
+      policy_target_version: root-visits-v1
   - id: M4
     title: Self-play, replay, trainer, and actual smoke
-    status: pending
+    status: completed
     depends_on: [M3]
     tasks:
       - Collect versioned complete-game records and MCTS visit policy targets.
@@ -107,6 +117,16 @@ milestones:
       - Run metadata and JSONL capture code/config/lock/model/replay hashes and elapsed budget use.
       - Resume is reproducible for declared seeds and rejects incompatible configuration or lineage.
       - Budget and interruption stop actors/optimizer work and preserve truthful partial-run status.
+    verification:
+      report: docs/verification-m4.md
+      results: docs/verification-m4-results.jsonl
+      baseline_revision: 1d45df03b0952ad0e1da49eda6832ae7c9d4bc5b
+      command: make check
+      result: 603 passed in 90.74s; no skips
+      focused_command: make check-m4
+      focused_result: 17 passed in 6.50s; no skips
+      smoke_command: make smoke
+      smoke_result: completed one game, one replay position, one optimizer step and checkpoint reload
   - id: M5
     title: Frozen paired arena and strength gates
     status: pending

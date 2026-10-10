@@ -96,7 +96,7 @@ schemas add explicit self-play, optimizer, replay, and checkpoint workloads.
 | --- | --- | --- |
 | `make install` | Install from `training/uv.lock`, including development tools | M0 |
 | `make check` | Validate M0 infrastructure and selected CPU reference regressions | M0 |
-| `make smoke` | Explicit unimplemented error, nonzero exit | M4 |
+| `make smoke` | Bounded selfplay/update/checkpoint smoke | M4 |
 | `make arena` | Explicit unimplemented error, nonzero exit | M5 |
 | `make experiment` | Explicit unimplemented error, nonzero exit | M6 |
 | `python -m quoridor.project_cli check-config --config ...` | Validate only, do not execute a run | M0 |
@@ -209,3 +209,27 @@ history-exact; evaluating this representation's strength is future work.
 Model weights can be saved and reloaded with exact identity checks; a complete
 training-resume implementation still belongs to M4. No execution stub becomes
 available as a result of M2, and no strength experiment is part of this task.
+
+## M3 Implementation Boundary
+
+`puct` uses the new engine/episode and caller-owned deadline, with no neural or
+legacy-search dependency. `search_evaluator` handles M2 model inference and
+inverse canonical policy coordinates. `search_config` maps validated YAML
+snapshots to strict search settings, including arena evaluation restrictions.
+The immutable result includes 209-entry visits, priors and value sums, raw visit
+targets, complete-history node snapshots, simulation/outcome counters and
+elapsed/overrun evidence. Status must be checked before selecting an action.
+
+`search-v1.md` defines exact counting, signs, cycle/truncation behavior and
+cooperative timing. `make check-m3` and the cumulative gate validate this layer.
+A temporary RunSession integration test logs partial search and budget exhaustion
+as JSONL without inventing an episode result. Actor/replay/optimizer scheduling
+still belongs to M4; frozen paired arena execution to M5; experiments to M6.
+
+## M4 Implementation Boundary
+
+M4 uses the new-rule self-play actor, versioned whole-game replay, the masked
+finite trainer and the lineage-bound training checkpoint. `smoke.py` is the
+bounded executable workload and shares the RunSession deadline across game,
+update and checkpoint work. See `docs/training-v1.md` for target coordinates,
+stop semantics, replay eligibility and smoke scope. M5/M6 remain unavailable.

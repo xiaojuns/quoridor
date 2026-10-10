@@ -1,8 +1,8 @@
 # Project Progress
 
 Date: 2026-10-10. Workstream: `quoridor-alphazero-v1`.
-Current milestone: M2 completed and verified after the follow-up implementation request.
-M0/M1 remain completed; this round stops after M2, before M3.
+Current milestone: M4 completed and verified after the follow-up implementation request.
+M0-M4 are completed; this round stops after M4, before M5.
 
 ## M0 Baseline Audit
 
@@ -236,10 +236,130 @@ roundtrips are unit tests. Actual gameplay calibration and the strength cost of
 partial history observation remain unmeasured. Any later experiment must first
 register its hypothesis, YAML configuration and finite time budget.
 
+## M3 Work and Baseline
+
+Selected M3 as the highest-priority unfinished task with all dependencies met
+(M1 and M2). The follow-up request authorizes work beyond the previous M2 stop.
+Starting revision: `1d45df03b0952ad0e1da49eda6832ae7c9d4bc5b`, clean worktree.
+Before any implementation, `make check` passed **471 tests in 75.01s**, exit 0,
+no skips. All 22 locked packages, offline lock/sync, three YAML configs and
+frozen arena/opening checks passed.
+
+M3 implements new-rule PUCT and model inference independently of the legacy
+search. Validation uses deterministic oracles and bounded synthetic inference;
+no training or strength experiment is required. Existing acceptance conditions,
+frozen configurations/fixtures and the dependency lock remain unchanged.
+
+Implemented `puct-v1` with complete legal expansion, parent-perspective PUCT,
+exact outcome leaves, full-history tree keys, and `root-visits-v1` raw visit
+targets. Root expansion does not count as a simulation but consumes the shared
+time budget; each complete backup contributes one root visit.
+The evaluator bridges M2 canonical features/model outputs back to original
+coordinates without changing the current-player value sign. Strict eval mode,
+finite outputs and validated YAML settings are enforced. Arena inference remains
+deterministic; selfplay noise uses a local seeded RNG at the root only.
+
+Search-local cycles are approximate zero-valued leaves, not game draws. True
+third repetitions use the exact episode outcome first. Simulated ply-limit
+truncation stops the search without backing up an unknown value. Deadline
+exhaustion retains complete prior visits but returns no selected action; a
+partial search cannot masquerade as a completed move or provide game labels.
+The new APIs and versioned conventions are in [docs/search-v1.md](docs/search-v1.md).
+
+Review found an internal gamma rejection loop could bypass outer deadline
+checks for finite alpha `1e308`: a 0.1-second budget exceeded an external
+3-second timeout. Deadline checks now run inside each random draw; the same
+probe returned `budget_exhausted` in 0.1007 seconds with no action or visits.
+Independent fake-clock regression and reference seeded priors verify the fix
+without changing acceptance conditions or banning the test input. There are
+no remaining known blockers for M3.
+
+## M3 Executed Verification
+
+| Command / check | Observed result |
+| --- | --- |
+| Baseline `make check` | Exit 0; 471 passed in 75.01s, no skips |
+| Final `make check-m3` | Exit 0; **115 passed in 11.95s**, no skips |
+| Final cumulative `make check` | Exit 0; **586 passed in 85.70s**, no skips (115 M3 + 471 existing) |
+| Environment, offline lock/sync, YAML and frozen hashes | Passed; all 22 packages unchanged; offline sync reports no changes |
+| Frozen input / criterion comparison | 11 prior config/fixture files, all M0-M6 acceptance criteria, lock, existing rules/legacy search and 10 prior test files unchanged |
+| `make help`, `git diff --check`, roadmap/result consistency | Exit 0 |
+
+Actual output, focused checks, defect evidence, acceptance mapping and copyable
+reproduction commands are saved in [docs/verification-m3.md](docs/verification-m3.md)
+and [docs/verification-m3-results.jsonl](docs/verification-m3-results.jsonl).
+The tests include both players' immediate wins, odd/even terminal and nonterminal
+backup, formula/tie/target checks, Hypothesis legal-support invariants,
+same-board/different-history adjudication, actual M2 model search, and a
+temporary RunSession JSONL integration that truthfully records partial budget
+exhaustion. Existing M0 tests still verify all three execution stubs fail nonzero.
+
+No selfplay/training job, GPU/native workload, new arena, strength experiment,
+or historical asset modification occurred. No playing-strength improvement is
+claimed. Timing is cooperative and cannot preempt an in-flight rule/model call.
+The reference implementation uses fresh trees, one-position inference and full
+episode validation; performance optimization and training scheduling are later
+work. Any later experiment must first register hypothesis, YAML configuration
+and finite time budget.
+
 ## Next Task
 
-M2 is complete with no known blocking issue; stop here. M3 is the next eligible
-task: correct bounded PUCT using new-rule episodes, the versioned encoder and
-tensor evaluator, exact history-aware outcomes/cache identity, sign backup tests
-and propagated deadlines. M3-M6 remain pending. `make smoke`, `make arena`, and
-`make experiment` remain explicitly unimplemented until M4/M5/M6.
+M3 is complete; M4 is now in progress with its dependency satisfied. This round
+implements bounded selfplay, fresh compatible replay, policy/value training,
+complete checkpoint/resume and actual `make smoke`; it stops before M5.
+
+## M4 Baseline and Registration
+
+The highest-priority eligible task is M4. Before implementation, the cumulative
+`make check` passed **586 tests in 85.73s**, exit 0, with no skips. The locked
+environment, offline sync, YAML checks and frozen arena/opening hashes passed.
+The starting worktree includes the uncommitted, verified M3 changes; no existing
+M3 or frozen input is being reverted.
+
+The requested long-run starting settings are recorded as design defaults:
+NetworkConfig width 64 with 4 residual blocks, 128 simulations per selfplay
+move, replay capacity 100,000, batch size 128, and 50–100 new games per round.
+M4 smoke uses a separately declared tiny workload and a finite wall-clock budget
+so CPU verification is bounded; it records effective settings and does not claim
+long-run performance. No strength experiment is registered or run.
+
+The M4 hypothesis is operational: a complete new-rule selfplay game can produce
+versioned root-visit policy targets and current-player terminal labels; one finite
+CPU optimizer update can consume them; a saved artifact can reload with identical
+model, optimizer, RNG, replay lineage and configuration identity. The smoke
+configuration, seed and time budget are registered before execution; truncation
+is retained as a count and excluded from replay.
+
+`make smoke` is now implemented as the real `smoke-run` workload; the historical
+direct `project_cli smoke` compatibility stub remains covered by the M0 test.
+`make arena` and `make experiment` remain explicitly unimplemented for M5/M6.
+
+## M4 Executed Verification
+
+M4 is complete. The final focused gate `make check-m4` passed 17 tests in 6.50s,
+with no skips; the final cumulative `make check` passed 603 tests in 90.74s,
+with no skips. Environment, locked offline sync, YAML and frozen arena/opening
+checks passed, and `git diff --check` passed.
+
+The actual final `make smoke CONFIG=configs/smoke.yaml` command exited 0 and
+created `runs/smoke/20261010T130800Z-dc36bd89ff77403a8c7a6e4526004ec1`. It recorded one
+completed tactical immediate-goal game (one ply), one admitted replay position,
+one optimizer update, and a successful training-resume reload. The effective
+model was the requested 64-channel/4-block architecture; smoke used 8
+simulations, root noise and temperature 1.0 from `configs/smoke.yaml`, replay
+capacity 16, batch size 1 and one optimizer step. Its training checkpoint SHA is
+`51783afe5dfa29093cbb795abb7eebcb3413ac52e8d46375190969b227512dde`; the saved
+inference model SHA is `57368edc411e5fc2e50dc00177c70a1b91b21cc4fcf946aa7b15e78bef3ce278`.
+The loss was `1.000000238418579`, elapsed time 1.166s, and run status was
+`completed` with zero truncated/failed games.
+
+The run's JSONL, summaries and artifacts remain under the ignored run directory.
+Exact commands, output, hashes and acceptance mapping are in
+`docs/verification-m4.md` and `docs/verification-m4-results.jsonl`. New tests
+cover repetition-draw zero labels, whole-game stop exclusion, canonical policy
+transforms, finite masked updates, deterministic eviction, and fail-closed
+lineage/RNG/replay checkpoint restoration. No long-run training or strength
+experiment was run; the tactical smoke is an engineering path check only.
+
+M4 is complete and this round stops before M5. `make arena` and `make experiment`
+remain explicitly unimplemented.

@@ -10,18 +10,22 @@ from typing import Sequence
 from .project_config import ConfigError, load_project_config
 
 
+# ``smoke`` remains the historical M0 direct-call placeholder so the old
+# contract test cannot accidentally launch work. The supported M4 Make target
+# invokes the explicit ``smoke-run`` command below; arena/experiment remain
+# placeholders until their milestones.
 NOT_IMPLEMENTED_MILESTONES = {"smoke": "M4", "arena": "M5", "experiment": "M6"}
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Quoridor M0 project interfaces")
-    parser.add_argument("command", choices=["check-config", *NOT_IMPLEMENTED_MILESTONES])
+    parser.add_argument("command", choices=["check-config", "smoke-run", *NOT_IMPLEMENTED_MILESTONES])
     parser.add_argument("--config", required=True, help="YAML config path")
     args = parser.parse_args(argv)
     try:
         config = load_project_config(
             args.config,
-            expected_mode=None if args.command == "check-config" else args.command,
+            expected_mode=None if args.command == "check-config" else ("smoke" if args.command == "smoke-run" else args.command),
         )
     except ConfigError as error:
         print(json.dumps({"schema_version": 1, "event": "config_error", "message": str(error)}), file=sys.stderr)
@@ -32,6 +36,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             "schema_version": 1, "event": "config_validated", "mode": config.mode,
             "config_sha256": config.sha256, "frozen": config.mode == "arena",
         }, sort_keys=True))
+        return 0
+
+    if args.command == "smoke-run":
+        from .smoke import run_smoke
+
+        try:
+            result = run_smoke(config)
+        except Exception as error:
+            print(json.dumps({
+                "schema_version": 1, "event": "smoke_failed", "message": str(error),
+            }, sort_keys=True), file=sys.stderr)
+            return 1
+        print(json.dumps({"schema_version": 1, "event": "smoke_completed", **result}, sort_keys=True))
         return 0
 
     milestone = NOT_IMPLEMENTED_MILESTONES[args.command]

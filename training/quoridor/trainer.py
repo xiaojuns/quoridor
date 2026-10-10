@@ -34,6 +34,7 @@ class AlphaZeroTrainer:
         use_amp: bool = True,
         schedule_steps: int | None = None,
         minimum_learning_rate: float = 0.0,
+        require_legal_masks: bool = False,
     ) -> None:
         self.model = model
         self.max_grad_norm = float(max_grad_norm)
@@ -43,6 +44,9 @@ class AlphaZeroTrainer:
             raise ValueError("learning_rate must be finite and positive")
         if not math.isfinite(float(weight_decay)) or weight_decay < 0:
             raise ValueError("weight_decay must be finite and non-negative")
+        self._initial_learning_rate = float(learning_rate)
+        self._weight_decay = float(weight_decay)
+        self._minimum_learning_rate = float(minimum_learning_rate)
         self.optimizer = torch.optim.AdamW(
             model.parameters(),
             lr=learning_rate,
@@ -73,6 +77,27 @@ class AlphaZeroTrainer:
             else None
         )
         self.step = 0
+        # M4 uses the legal mask from the versioned encoder.  ``False`` keeps
+        # the historical in-memory trainer callable by old callers; new
+        # replay loaders always provide ``legal_masks`` and can opt into the
+        # fail-closed behaviour with ``require_legal_masks=True``.
+        if not isinstance(require_legal_masks, bool):
+            raise TypeError("require_legal_masks must be a boolean")
+        self.require_legal_masks = require_legal_masks
+
+    @property
+    def config(self) -> dict[str, object]:
+        """Stable optimizer/runtime settings used by resume compatibility."""
+        return {
+            "learning_rate": self._initial_learning_rate,
+            "weight_decay": self._weight_decay,
+            "max_grad_norm": float(self.max_grad_norm),
+            "schedule_steps": self.schedule_steps,
+            "minimum_learning_rate": (
+                self._minimum_learning_rate
+            ),
+            "require_legal_masks": self.require_legal_masks,
+        }
 
     def train_step(
         self,
@@ -84,6 +109,23 @@ class AlphaZeroTrainer:
         self._validate_value_weights(value_weights, batch["states"].shape[0])
         self.model.train()
         target_policies = batch["policies"]
+        legal_masks = batch.get("legal_masks")
+        if legal_masks is None:
+            if self.require_legal_masks:
+                raise ValueError("training batch must include legal_masks")
+            # Legacy samples have no explicit rule mask.  They are accepted
+            # as an all-actions support only for compatibility; the new M4
+            # path sets require_legal_masks and therefore cannot take this
+            # permissive branch.
+            legal_masks = torch.ones_like(target_policies, dtype=torch.bool)
+        if not isinstance(legal_masks, torch.Tensor):
+            raise TypeError("legal_masks must be a tensor")
+        if legal_masks.dtype is not torch.bool or legal_masks.shape != target_policies.shape:
+            raise ValueError("legal_masks must be a bool tensor matching policies")
+        if not bool(legal_masks.any(dim=1).all().item()):
+            raise ValueError("each training position must have at least one legal action")
+        if bool((target_policies.masked_fill(legal_masks, 0) != 0).any().item()):
+            raise ValueError("policy target assigns mass to an illegal action")
         autocast_context = (
             torch.autocast(device_type="cuda", dtype=torch.float16)
             if self.amp_enabled
@@ -99,9 +141,14 @@ class AlphaZeroTrainer:
 
             self._require_finite(policy_logits, "model policy logits")
             self._require_finite(predicted_values, "model values")
-            policy_loss = -(
-                target_policies * F.log_softmax(policy_logits, dim=1)
-            ).sum(dim=1).mean()
+            masked_logits = policy_logits.masked_fill(~legal_masks, float("-inf"))
+            support_log_probs = F.log_softmax(masked_logits, dim=1)
+            # Keep illegal entries finite before multiplication: 0 * -inf is
+            # NaN and would defeat the finite-gradient gate.
+            support_log_probs = torch.where(
+                legal_masks, support_log_probs, torch.zeros_like(support_log_probs)
+            )
+            policy_loss = -(target_policies * support_log_probs).sum(dim=1).mean()
             value_losses = F.mse_loss(
                 predicted_values,
                 target_values,
@@ -191,7 +238,13 @@ class AlphaZeroTrainer:
 
     @classmethod
     def _validate_batch(cls, batch: dict[str, torch.Tensor]) -> None:
-        if set(batch) != {"states", "policies", "values"}:
+        if not isinstance(batch, Mapping):
+            raise TypeError("training batch must be a mapping")
+        # Replay exposes side/action diagnostics alongside the optimization
+        # tensors.  They are validated by replay and intentionally ignored by
+        # the loss implementation.
+        allowed = {"states", "features", "policies", "raw_policies", "values", "legal_masks", "to_play", "actions", "sample_ids"}
+        if not set(batch).issubset(allowed) or not {"states", "policies", "values"}.issubset(batch):
             raise ValueError("training batch must contain states, policies, and values")
         states = batch["states"]
         policies = batch["policies"]
@@ -219,6 +272,16 @@ class AlphaZeroTrainer:
             raise ValueError("each training policy must sum to one")
         if bool(((values < -1) | (values > 1)).any().item()):
             raise ValueError("training values must be in [-1, 1]")
+        if "legal_masks" in batch:
+            masks = batch["legal_masks"]
+            if not isinstance(masks, torch.Tensor) or masks.dtype is not torch.bool:
+                raise ValueError("legal_masks must be a bool tensor")
+            if masks.shape != policies.shape:
+                raise ValueError("legal_masks must match policy target shape")
+            if not bool(masks.any(dim=1).all().item()):
+                raise ValueError("each training position must have a legal action")
+            if bool((policies.masked_fill(masks, 0) != 0).any().item()):
+                raise ValueError("policy target assigns mass to an illegal action")
 
     @classmethod
     def _validate_value_weights(

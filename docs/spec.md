@@ -171,11 +171,11 @@ checkpoint hashes, code revision/dirty status, time budget, and outcome counts.
 M0 provides dependency installation, `make check`, YAML validation, frozen arena
 configuration verification, and tested run-directory/JSONL/deadline helpers.
 These helpers are infrastructure; they do not yet enforce a training scheduler.
-`make smoke`, `make arena`, and `make experiment` are reserved interfaces and
-must fail explicitly as unimplemented with nonzero status. Configuration
-validation does not imply that training or evaluation ran. M1-M6 acceptance is
-tracked in `tasks.yaml`. The M0 round stopped at infrastructure; the authorized
-M1 follow-up implements rules only and leaves these execution entries unavailable.
+`make arena` and `make experiment` remain reserved interfaces and must fail
+explicitly as unimplemented with nonzero status. M4 supersedes the M0 smoke
+placeholder with a bounded real self-play/update/checkpoint workload documented
+in `docs/training-v1.md`; configuration validation alone still never implies that
+training or evaluation ran. M1-M6 acceptance is tracked in `tasks.yaml`.
 
 ## M1 Compatibility Boundary
 
@@ -194,3 +194,23 @@ numbers alone cannot establish compatibility. This is an identity gate, not a
 checkpoint/replay loader. M2's separate model-weight loader verifies encoder,
 architecture and optional expected content hashes; M4 must additionally verify
 run/replay lineage and complete episode history before resuming training.
+
+## M3 Search Convention
+
+`search-v1.md` specifies the implemented `puct-v1` API and `root-visits-v1`
+targets. Root expansion is not a simulation; each complete backup contributes
+one root visit. Targets are raw normalized visits at every temperature, and
+zero visits produce a zero target, never substituted priors. Equal PUCT scores
+and equal maximal visits select the smallest action ID. Selfplay noise acts at
+the root only; evaluation rejects noise and nonzero temperature.
+
+Tree identity includes the complete episode adjudication key, and no tree
+survives a search call. Exact outcome checks precede simulation-path cycle
+cutoffs. A path cutoff may back up zero as an approximation, without declaring
+a game draw. A simulated ply-limit truncation has no value and ends the search
+explicitly without backing up that incomplete simulation. An expired deadline
+returns an explicit incomplete search with prior completed visits retained as
+diagnostics and no selected action. Neither event supplies replay outcome
+labels. These search statuses are distinct from the caller's real episode,
+which search never mutates. Deadline enforcement is cooperative; observed
+overruns are reported without claiming atomic operations can be preempted.
