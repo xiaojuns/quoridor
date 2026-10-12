@@ -36,4 +36,5 @@ logs effective settings and phases in JSONL, plays one near-goal tactical game,
 admits its terminal sample, performs one CPU update, saves/reloads a training
 checkpoint and publishes compatible M2 weights. The fixture is recorded as
 `tactical-immediate-goal-v1`; this proves the engineering path and says nothing
-about strength or convergence. Arena and experiment remain M5/M6 stubs.
+about strength or convergence. M5 arena now requires explicit compatible model
+inputs; experiment remains an M6 stub. See `arena-v1.md`.

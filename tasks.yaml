@@ -1,7 +1,7 @@
 schema_version: 1
 workstream: quoridor-alphazero-v1
-active_milestone: M4
-stop_after: M4
+active_milestone: M5
+stop_after: M5
 milestones:
   - id: M0
     title: Executable engineering skeleton
@@ -129,7 +129,7 @@ milestones:
       smoke_result: completed one game, one replay position, one optimizer step and checkpoint reload
   - id: M5
     title: Frozen paired arena and strength gates
-    status: pending
+    status: in_progress
     depends_on: [M4]
     tasks:
       - Implement make arena with explicit immutable candidate and champion inputs.
@@ -142,6 +142,32 @@ milestones:
       - Any truncation, illegal action, numerical error, or incomplete pair makes promotion ineligible.
       - Promotion requires score >= 0.55 and 95 percent pair-bootstrap lower bound > 0.50.
       - Final evaluation declares prior fixture exposure and freezes a fresh reserved suite before M6 tuning; diagnostics cannot be reported as formal acceptance.
+    verification:
+      report: docs/verification-m5.md
+      results: docs/verification-m5-results.jsonl
+      baseline_revision: eaa2ca37ccf7054829cfcab4fc2d6723e9ce6f55
+      baseline_command: make check
+      baseline_result: 603 passed in 89.87s; no skips
+      command: make check
+      result: 690 passed in 123.08s; no skips
+      focused_command: make check-m5
+      focused_result: 87 passed in 36.17s; no skips
+      frozen_inputs: Existing configs, fixtures, dependencies, M0-M4 tests and all milestone acceptance arrays unchanged
+      reserved_suite: configs/reserved-final-v1.yaml
+      reserved_suite_result: Full independent regeneration produced byte-identical 200-opening suite
+    pending_acceptance:
+      - Actual complete frozen 200-pair / 400-game neural comparison; synthetic schedule tests are not this evidence
+    blockers:
+      - Existing legacy champion failed M2 checkpoint compatibility before any game; no compatible candidate/champion comparison pair is designated
+      - Compatible M4 tactical smoke weights exist only as engineering artifacts, not a designated strength baseline
+    failure_evidence:
+      command: make arena CANDIDATE=runs/smoke/20261010T130800Z-dc36bd89ff77403a8c7a6e4526004ec1/model-weights.pt CHAMPION=training/runs/phase4/champions/champion-g00000014-s00000000-67b580c9087f.pt
+      make_exit_code: 2
+      cli_exit_code: 1
+      result: incompatible champion model artifact; checkpoint fields mismatch; legacy checkpoints require explicit migration
+      run_dir: runs/arena/20261010T135746Z-58708042fd9b42cebe4cd106fdbc8ec0
+      games_played: 0
+    next_action: Designate compatible immutable candidate/champion snapshots, preregister their hashes and comparison hypothesis, then run the unchanged 3600-second frozen arena; retain any incomplete outcome and do not start M6
   - id: M6
     title: Budgeted reproducible experiments and measured improvement
     status: pending

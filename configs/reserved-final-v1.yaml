@@ -1,0 +1,17 @@
+schema_version: 1
+suite_id: az-reserved-final-v1
+purpose: reserved_final_before_M6_tuning
+opening_suite: training/fixtures/openings/az-reserved-v1/final.json
+opening_suite_sha256: 2543fb5935d06a3de3afb67fae290d014c5a4a40d48bde0af97d3d29113f55dd
+generation_config: configs/reserved-final-v1-generation.yaml
+generation_config_sha256: c58a7042432a99c66cd4dbcb4d2beb0bb48becc7f6516aaf7d23a97a759c6549
+historical_exposure: training/fixtures/openings/final.json was used in historical
+  Phase 4F evaluation and is not an untouched holdout; dev, final and both recovery
+  suites are excluded by board symmetry orbit.
+performance_selection: No model loaded; no performance inspected. Accept only legal
+  live prefixes with distinct non-overlapping board symmetry orbits.
+usage: Freeze only. M6 must not inspect reserved performance to choose models or hyperparameters.
+  Formal use requires a separately frozen evaluation protocol; arena-dev-v1 remains
+  unchanged.
+generation_run: runs/reserved-generation/cecc63f6809741e3a8f326dc995f05d8
+generation_seconds: 100.39684691792354

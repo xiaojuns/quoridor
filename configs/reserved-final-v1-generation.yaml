@@ -1,0 +1,25 @@
+schema_version: 1
+purpose: engineering_asset_generation_no_strength_measurement
+hypothesis: Seeded legal prefixes supply 200 distinct new-rule opening board orbits
+  disjoint from all four historical suites without consulting any model or score.
+selection_rule: Accept the first 200 live legal prefixes with unique board symmetry
+  orbits disjoint from all exclusion sources; never rank by model performance.
+algorithm: uniform-legal-prefix-orbit-exclusion-v1
+seed: 2026101005
+count: 200
+prefix_plies: 16
+budget_seconds: 180
+rules_version: quoridor-v1
+codec_version: az209-v1
+history_semantics: replay-from-standard-initial-position-v1
+exclusion_sources:
+- path: training/fixtures/openings/dev.json
+  sha256: 48f45b3df74fdd508a21e57e2a8e60526f865491600c76ce4ef06d99988bf680
+- path: training/fixtures/openings/final.json
+  sha256: c11f7b12a2da755723aaf1421eb97167a55a1ce19275fbf26a2c826a5726d711
+- path: training/fixtures/openings/recovery-v1/recovery-dev-v1.json
+  sha256: 0b7689754d3d4e3bfe85777ce958975ecd2e597c2b4133b1bfed9769c9c81d54
+- path: training/fixtures/openings/recovery-v1/recovery-final-v1.json
+  sha256: ee60f2e0e3324f9b425192789d18e0b8731ef6c5ac235117ef5639eaebd5f372
+reproduce: PYTHONPATH=training training/.venv/bin/python -m quoridor.reserved_openings
+  generate --output /tmp/az-reserved-final-v1-reproduced.json

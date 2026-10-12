@@ -171,8 +171,9 @@ checkpoint hashes, code revision/dirty status, time budget, and outcome counts.
 M0 provides dependency installation, `make check`, YAML validation, frozen arena
 configuration verification, and tested run-directory/JSONL/deadline helpers.
 These helpers are infrastructure; they do not yet enforce a training scheduler.
-`make arena` and `make experiment` remain reserved interfaces and must fail
-explicitly as unimplemented with nonzero status. M4 supersedes the M0 smoke
+M0 reserved arena/experiment interfaces failed explicitly with nonzero status.
+M5 enables `make arena` with explicit model inputs as specified in `arena-v1.md`;
+`make experiment` remains unimplemented. M4 supersedes the M0 smoke
 placeholder with a bounded real self-play/update/checkpoint workload documented
 in `docs/training-v1.md`; configuration validation alone still never implies that
 training or evaluation ran. M1-M6 acceptance is tracked in `tasks.yaml`.

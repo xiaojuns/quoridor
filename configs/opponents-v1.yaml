@@ -1,0 +1,16 @@
+schema_version: 1
+protocol_id: diagnostic-opponents-v1
+formal_promotion: false
+random_legal:
+  seed: 20261010
+  sampling: uniform-sorted-legal-actions-history-seeded
+shortest_path:
+  action_set: pawn-moves
+  objective: minimum-wall-only-distance-after-move
+  tie_break: smallest-action-id
+classic:
+  adapter: classic-legacy-search-new-referee-v1
+  node_limit: 587
+  max_depth: 5
+  search_outcomes: legacy-repetition-and-ply-limit-loss
+  referee: quoridor-v1

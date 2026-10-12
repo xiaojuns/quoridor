@@ -31,8 +31,10 @@ history versus local path cycles, goal/draw/truncation distinctions, seeded
 selfplay versus deterministic evaluation, and mandatory cooperative deadlines.
 The neural adapter is tested with both controlled outputs and the actual M2
 model. Temporary JSONL run integration preserves partial statistics and reports
-budget exhaustion. These are correctness tests, not arena or strength results;
-all three execution entry points still fail explicitly as unimplemented.
+budget exhaustion. These are correctness tests, not arena or strength results.
+At M3 all three execution entries were unimplemented; M4 now implements smoke,
+M5 implements arena with explicit model inputs, and M6 experiment remains
+explicitly unimplemented.
 
 Later acceptance must cover:
 
@@ -80,7 +82,7 @@ the existing classic AI, and the current champion where compatible; each gets
 a declared fixed configuration and version. No incompatible legacy champion can
 be used without a documented adapter and migration assessment.
 
-Candidate/champion paths are explicit future arena inputs. Record SHA-256 of
+Candidate/champion paths are explicit M5 arena inputs. Record SHA-256 of
 each model and its architecture/encoder/rules metadata. Artifact names such as
 `latest` are not immutable opponent identities. Promotion creates a new versioned
 champion identity only after all gates pass; M0 creates no champion.
@@ -135,6 +137,14 @@ matching lineage. Its tactical fixture and tiny budget are recorded as an
 engineering workload; no strength or convergence claim follows. Truncated or
 failed games remain counted and excluded. M5's arena is the first formal
 strength gate.
+
+M5 implementation and verification are described in `arena-v1.md` and
+`verification-m5.md`. The fresh reserved suite is pinned separately by
+`configs/reserved-final-v1.yaml`; all 200 histories were replayed and an independent
+full generation reproduced identical bytes. This freeze is not a strength
+result and does not authorize using final performance for M6 tuning. Synthetic
+400-game scheduling tests and tactical real-search games remain engineering
+evidence; they do not satisfy the actual frozen 400-game comparison requirement.
 
 ## Historical Evidence and Current Claims
 

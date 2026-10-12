@@ -1,8 +1,8 @@
 # Project Progress
 
 Date: 2026-10-10. Workstream: `quoridor-alphazero-v1`.
-Current milestone: M4 completed and verified after the follow-up implementation request.
-M0-M4 are completed; this round stops after M4, before M5.
+Current milestone: M5 implementation and engineering verification; formal arena pending.
+M0-M4 are completed. This follow-up selects M5 and stops before M6.
 
 ## M0 Baseline Audit
 
@@ -302,7 +302,7 @@ episode validation; performance optimization and training scheduling are later
 work. Any later experiment must first register hypothesis, YAML configuration
 and finite time budget.
 
-## Next Task
+## Historical M4 Selection
 
 M3 is complete; M4 is now in progress with its dependency satisfied. This round
 implements bounded selfplay, fresh compatible replay, policy/value training,
@@ -363,3 +363,89 @@ experiment was run; the tactical smoke is an engineering path check only.
 
 M4 is complete and this round stops before M5. `make arena` and `make experiment`
 remain explicitly unimplemented.
+
+## M5 Selection and Implementation
+
+This follow-up selected M5, the highest-priority unfinished milestone with all
+dependencies satisfied (M4 complete), and supersedes the historical M4 stop
+above. Starting revision was `eaa2ca37ccf7054829cfcab4fc2d6723e9ce6f55`, with a
+clean worktree synchronized with origin. Before implementation, `make check`
+passed **603 tests in 89.87s**, no skips; lock/environment/config gates passed.
+
+Implemented `arena_v1` and `make arena` with explicit compatible model-only
+candidate/champion snapshots, byte hashes and metadata validation, all 200
+development prefixes replayed under M1 with complete history, side-swapped
+games, real PUCT and per-search/game JSONL. The unchanged protocol uses CPU,
+256 simulations, no noise, temperature zero and one shared 3600-second budget.
+It includes model loading, prefix validation, search, statistics and finalization.
+
+Independent statistics score draws as 0.5, retain every completed game's
+diagnostic score, and bootstrap whole complete pairs using the frozen central
+95% interval. All 400 games and error-free execution are required before the
+unchanged score >= 0.55 and lower bound > 0.50 gates can pass. Interrupted or
+truncated runs retain evidence and exit nonzero. Review found and fixed a
+finalization overrun that could leave a stale promotion flag; regressions now
+cover deadline expiry and exceptions after actual result publication. Consumers
+must require both completed run and result artifacts; JSONL summary events are
+explicitly provisional. No champion store was updated.
+
+Fixed random-legal, move-only shortest-path and classic diagnostic opponent APIs
+are versioned separately. Classic is an optional Node adapter with fixed
+587-node/depth-5 settings and explicitly documented legacy internal heuristics;
+it is not a compatible neural champion. A real 15-second-budget bridge check
+finished in 5.5758s with repeatable legal actions for both players.
+
+Fresh final-suite generation was preregistered in
+`configs/reserved-final-v1-generation.yaml`: 200 legal 16-ply prefixes, seed
+2026101005, 180-second budget, no models or performance-based selection.
+Generation completed in 100.3968s; independent regeneration completed in
+100.0880s and reproduced identical bytes. The SHA-256 is
+`2543fb5935d06a3de3afb67fae290d014c5a4a40d48bde0af97d3d29113f55dd`.
+All final board symmetry orbits are distinct and excluded against the four
+historical suites. This freezes new assets before M6; it is not a strength
+evaluation. Formal final use needs a separately frozen execution protocol.
+
+## M5 Executed Verification
+
+| Command / check | Actual result |
+| --- | --- |
+| Baseline `make check` | Exit 0; 603 passed in 89.87s, no skips |
+| Final `make check-m5` | Exit 0; **87 passed in 36.17s**, no skips |
+| Final cumulative `make check` | Exit 0; **690 passed in 123.08s**, no skips |
+| Locked environment, offline lock/sync, YAML and frozen digests | Passed; all 22 packages unchanged |
+| Frozen-input/acceptance comparison | 31 prior config/fixture/dependency/test files byte-identical; all M0-M6 acceptance arrays unchanged |
+| `make help` | Exit 0 |
+| `git diff --check`, new-file whitespace and YAML/JSONL status checks | Passed |
+| `make arena` with no models | Make/CLI exit 2; explicit missing-input error |
+| `make experiment` | Make exit 2, CLI exit 3; explicit NOT IMPLEMENTED for M6 |
+| Legacy champion compatibility attempt | Make exit 2, CLI exit 1; incompatible checkpoint rejected before any game |
+
+Full commands, actual output, acceptance scope and failure reproduction are in
+[docs/verification-m5.md](docs/verification-m5.md) and
+[docs/verification-m5-results.jsonl](docs/verification-m5-results.jsonl).
+[docs/reserved-openings-v1.md](docs/reserved-openings-v1.md) records generation
+and independent regeneration commands/results. Real neural tactical goal/draw
+tests and a synthetic 400-game schedule are engineering verification only;
+neither is a completed frozen neural comparison. No old test, frozen fixture,
+evaluation setting or acceptance condition was weakened. Historical models,
+replay, datasets and GPU ledger were not modified.
+
+## M5 Blocker and Next Task
+
+M5 remains **in progress**; M6 is not started. The outstanding acceptance is an
+actual complete 200-pair/400-game comparison under the frozen arena protocol.
+The existing legacy champion is incompatible with M2 model-only checkpoints.
+The actual attempt is retained at
+`runs/arena/20261010T135746Z-58708042fd9b42cebe4cd106fdbc8ec0`, status `failed`,
+elapsed 0.6606s, zero games, with `checkpoint fields mismatch; legacy checkpoints
+require explicit migration`. Compatible M4 smoke weights exist, but were
+deliberately initialized for a tactical one-ply engineering workload; no
+compatible candidate/champion pair has been designated for this comparison.
+No full arena, promotion or playing-strength improvement is claimed.
+
+Next task remains M5: designate compatible immutable model snapshots, register
+their exact hashes, comparison hypothesis and the frozen 3600-second budget,
+then run `make arena CANDIDATE=... CHAMPION=...` as documented. If it cannot
+complete within that budget, preserve the incomplete result and measured
+bottleneck; do not reduce pair count, simulations or confidence requirements.
+The blocker and pending acceptance are also recorded in `tasks.yaml`.

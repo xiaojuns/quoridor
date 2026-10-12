@@ -2,8 +2,9 @@
 
 Read `progress.md`, `tasks.yaml`, then `docs/spec.md`, `docs/design.md`, and
 `docs/eval.md`. M0-M4 are complete. Read `docs/model-v1.md`, `docs/search-v1.md`,
-`docs/training-v1.md` and `docs/verification-m4.md` for the model/search/training
-APIs and actual evidence. Stop after M4; M5-M6 require a later task.
+`docs/training-v1.md`, `docs/arena-v1.md` and `docs/verification-m5.md` for APIs
+and actual evidence. M5 is in progress; stop before M6. A passing engineering
+suite is not completion of the required real 200-pair arena run.
 Existing Phase 4 code and ignored local assets are
 legacy evidence, not proof of compliance with the new contract.
 
@@ -33,8 +34,15 @@ legacy evidence, not proof of compliance with the new contract.
 # Verification
 
 Run `make check` before reporting a milestone complete. Run relevant focused
-checks while editing. `make arena` and `make experiment` currently return
-NOT IMPLEMENTED with a nonzero status until M5/M6. Never
+checks while editing. `make check-m5` covers frozen arena integrity and scoring.
+`make arena` requires explicit CANDIDATE/CHAMPION model-only checkpoints; use
+CANDIDATE_SHA256/CHAMPION_SHA256 to pin external identities. `make experiment`
+still returns NOT IMPLEMENTED with nonzero status until M6. Never
 report stub execution, skipped native/GPU tests, historical reports, or loss
 improvement as a passed pipeline or strength evaluation. Record actual commands,
 outcomes, limitations, and the next task in `progress.md`.
+
+Fresh final openings are frozen by `configs/reserved-final-v1.yaml` and its
+digest. Inspect their integrity, never their performance for tuning. Historical
+final openings were exposed. The fresh suite needs its own frozen execution
+protocol before a later independent final evaluation; do not override dev YAML.

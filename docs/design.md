@@ -1,6 +1,7 @@
 # Engineering Design and Migration Boundary
 
-Status: M0 design, 2026-10-10. `docs/spec.md` is the behavioral contract;
+Status: updated through M5 engineering implementation, 2026-10-10.
+M5's full neural comparison remains pending. `docs/spec.md` is the behavioral contract;
 `tasks.yaml` schedules its implementation. Existing training code remains a
 legacy implementation until the corresponding milestone has been accepted.
 
@@ -81,29 +82,31 @@ paired-match count, confidence procedure, and promotion thresholds.
 `configs/arena.sha256` binds the exact YAML bytes. Arena validation also verifies
 the opening-suite bytes against their declared SHA-256. A changed protocol is a
 new reviewed version with a new digest, not an override of the existing version.
-CLI checkpoint inputs are future runtime inputs; their hashes enter each run's
+CLI checkpoint inputs are explicit runtime inputs; their hashes enter each run's
 metadata and cannot alter the frozen search or scoring configuration.
 
-The planned M5 invocation is `make arena CANDIDATE=path/to/candidate.pt
+The M5 invocation is `make arena CANDIDATE=path/to/candidate.pt
 CHAMPION=path/to/champion.pt CONFIG=configs/arena.yaml`, forwarded to
 `quoridor-project arena --candidate ... --champion ... --config ...`.
-M0 accepts only the config selection and reports unimplemented; it does not
+M0 accepted only the config selection and reported unimplemented; it did not
 load either model. M4 smoke uses `make smoke CONFIG=configs/smoke.yaml`;
-M6 uses `make experiment CONFIG=path/to/experiment.yaml`. Their future YAML
-schemas add explicit self-play, optimizer, replay, and checkpoint workloads.
+M6 reserves `make experiment CONFIG=path/to/experiment.yaml`. M4's smoke YAML
+declares rules, search and budget; `smoke.py` fixes the small replay, optimizer
+and checkpoint workload and records it in `m4_effective_config` JSONL.
+The long-run experiment schema remains future work.
 
-| Entry | M0 behavior | Owning implementation milestone |
+| Entry | Current behavior | Owning implementation milestone |
 | --- | --- | --- |
 | `make install` | Install from `training/uv.lock`, including development tools | M0 |
-| `make check` | Validate M0 infrastructure and selected CPU reference regressions | M0 |
+| `make check` | Validate M0-M5 and selected CPU reference regressions | M0-M5 |
 | `make smoke` | Bounded selfplay/update/checkpoint smoke | M4 |
-| `make arena` | Explicit unimplemented error, nonzero exit | M5 |
+| `make arena` | Frozen paired comparison; explicit compatible models required | M5 |
 | `make experiment` | Explicit unimplemented error, nonzero exit | M6 |
 | `python -m quoridor.project_cli check-config --config ...` | Validate only, do not execute a run | M0 |
 
 The `quoridor-project` CLI is the new workstream entry; `quoridor-az` and old
-phase scripts remain legacy. Future smoke performs a small bounded self-play,
-training, checkpoint, and reload cycle. Future arena takes explicit candidate and
+phase scripts remain legacy. Smoke performs a small bounded self-play,
+training, checkpoint, and reload cycle. Arena takes explicit candidate and
 champion identities and uses its frozen protocol. Future experiment takes an
 explicit YAML plan and records its total budget and lineage. Runtime overrides
 that invalidate the frozen arena are rejected. Current placeholder success is
@@ -111,7 +114,7 @@ not permitted, including success after only parsing configuration.
 
 ## Runs, Deadlines, and Logs
 
-All future smoke/training/arena/experiment runs allocate unique directories
+All smoke/training/arena/experiment runs must allocate unique directories
 under the configured `run_root` (default `runs/`). Allocation never overwrites an
 existing run. M0 infrastructure writes a validated effective `config.yaml`,
 `run.json` provenance, `events.jsonl`, and a terminal `summary.json`; later
@@ -232,4 +235,14 @@ M4 uses the new-rule self-play actor, versioned whole-game replay, the masked
 finite trainer and the lineage-bound training checkpoint. `smoke.py` is the
 bounded executable workload and shares the RunSession deadline across game,
 update and checkpoint work. See `docs/training-v1.md` for target coordinates,
-stop semantics, replay eligibility and smoke scope. M5/M6 remain unavailable.
+stop semantics, replay eligibility and smoke scope. M6 remains unavailable.
+
+## M5 Implementation Boundary
+
+`arena_v1` revalidates frozen prefixes using M1 and invokes M3 search with
+immutable M2 model snapshots. `arena_statistics` implements draw-aware scoring,
+complete-pair confidence and the unchanged promotion gates. `arena_opponents`
+provides separately versioned diagnostic baselines. `reserved_openings` freezes
+a new final suite without replacing exposed historical fixtures. Their APIs,
+scope and CLI behavior are in `arena-v1.md`; actual evidence and outstanding
+full-comparison requirements are in `verification-m5.md`.
